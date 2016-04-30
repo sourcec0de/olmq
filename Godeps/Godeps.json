@@ -1,0 +1,12 @@
+{
+	"ImportPath": "github.com/zwb-ict/lmq",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v62",
+	"Deps": [
+		{
+			"ImportPath": "github.com/bmatsuo/lmdb-go/lmdb",
+			"Comment": "v1.6.0-11-g7ed073b",
+			"Rev": "7ed073bca400c16a43dd504a35d857939c0d8806"
+		}
+	]
+}
