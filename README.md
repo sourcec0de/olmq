@@ -1,5 +1,4 @@
 # lmq
-Message queue system written in Go and backend by Lmdb
 
 [![GoDoc][1]][2] [![Build Status][3]][4] [![Go Report Card][5]][6] [![Coverage Statusd][7]][8]
 
