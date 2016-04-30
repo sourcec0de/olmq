@@ -1,0 +1,17 @@
+language: go
+sudo: false
+go:
+- 1.6.2
+- tip
+env:
+  global:
+  - GOARCH=amd64
+notifications:
+  email:
+    on_success: change
+    on_failure: always
+  slack:
+    secure: FuPZfLwAJEW4hMqF/23d40p24LNnLy/+bRt7quuZDvEJxRxC2AOSW1Qki98tmjHIsyIeBbeMijLbLSYp3JQMHgaQZ6YaBn6+fqa6M3xgPHz14YWJYFZW2XVd2Qnbbfo/atNTnexCZraAxwxoRqbSXxqgaqzi556YE8EPK0DvnUIhX2Ku+XQXD7SmNEF49Cc1Hc7QATqDwBv6eXTrJIM4VBZkV4GNzqSek9z/cZvm/3S06k/4581Jgtxw1sqqXNnVkAk2QyjQBzsjUsoULv4Qdo+qtM0nW8zqBBT78LRbZ7BdakpW0zIfXmBtHNwP0igla7xBGjEuJzkODjt7vh8nWNjSSEuCyLiTcbasFKzoIxxCfhDFbnlsusov759nspMBGuwjfE5DCtoN0WpPCl3KQBvMKg5DIIQBSTTrqLXDFikxOTy21bJxuKkBp5s7WChZqQVmA80LDUinRwXTc281MIUKzPYqPyniDG+OZFcsING/COjje801lPCOWIBmt1p+K7pFz4FWrqUFWTeLKPO/0ImWbpSBJ4XT1kpjpb9eyWfgiI5yCezg2Zbxq5HRFx93FNkI+SZSi5TgyYzeuyyg0GeMqs8Khc+bzygad1EkhGYMCZxXveE2cnimxJ35betsp1wxrS6ALNVoYL12ccxYUjVR/FdfniNskjA1I/wYUB4=
+matrix:
+  allow_failures:
+    - go: tip
