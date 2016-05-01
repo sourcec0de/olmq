@@ -42,19 +42,26 @@ func newLmdbTopic(env *lmdb.Env, name string) *lmdbTopic {
 		env:  env,
 		name: name,
 	}
-	topic.env.Update(func(txn *lmdb.Txn) error {
-		topic.initOwerMeta(txn)
-		topic.initPartitionMeta(txn)
+	err := topic.env.Update(func(txn *lmdb.Txn) error {
+		if err := topic.initOwerMeta(txn); err != nil {
+			return err
+		}
+		if err := topic.initPartitionMeta(txn); err != nil {
+			return err
+		}
 		return nil
 	})
+	if err != nil {
+		panic(err)
+	}
 	return topic
 }
 
-func (topic *lmdbTopic) initOwerMeta(txn *lmdb.Txn) {
+func (topic *lmdbTopic) initOwerMeta(txn *lmdb.Txn) error {
 	ownerDBName := fmt.Sprintf("%s-%s", topic.name, ownerMetaName)
 	ownerMeta, err := txn.CreateDBI(ownerDBName)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	topic.ownerMeta = ownerMeta
 	initOffset := uInt64ToBytes(0)
@@ -64,30 +71,26 @@ func (topic *lmdbTopic) initOwerMeta(txn *lmdb.Txn) {
 			if err.Errno == lmdb.KeyExist {
 				topic.partitionMetaInited = true
 			} else {
-				panic(err)
+				return err
 			}
-		} else {
-			panic(err)
 		}
+		return err
 	} else {
 		topic.partitionMetaInited = false
 	}
 }
 
-func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) {
+func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
 	partitionDBName := fmt.Sprintf("%s-%s", topic.name, partitionMetaName)
 	partitionMeta, err := txn.CreateDBI(partitionDBName)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	topic.partitionMeta = partitionMeta
 	if topic.partitionMetaInited {
-		return
+		return nil
 	}
 	initOffset := uInt64ToBytes(0)
 	initpartitionID := uInt64ToBytes(0)
-	err = txn.Put(topic.partitionMeta, initpartitionID, initOffset, lmdb.NoOverwrite)
-	if err != nil {
-		panic(err)
-	}
+	return txn.Put(topic.partitionMeta, initpartitionID, initOffset, lmdb.NoOverwrite)
 }
