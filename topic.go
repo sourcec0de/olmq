@@ -75,9 +75,9 @@ func (topic *lmdbTopic) initOwerMeta(txn *lmdb.Txn) error {
 			}
 		}
 		return err
-	} else {
-		topic.partitionMetaInited = false
 	}
+	topic.partitionMetaInited = false
+	return nil
 }
 
 func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
