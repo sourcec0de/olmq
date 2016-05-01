@@ -43,7 +43,7 @@ func newLmdbTopic(env *lmdb.Env, name string) *lmdbTopic {
 		name: name,
 	}
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
-		if err := topic.initOwerMeta(txn); err != nil {
+		if err := topic.initOwnerMeta(txn); err != nil {
 			return err
 		}
 		if err := topic.initPartitionMeta(txn); err != nil {
@@ -57,7 +57,7 @@ func newLmdbTopic(env *lmdb.Env, name string) *lmdbTopic {
 	return topic
 }
 
-func (topic *lmdbTopic) initOwerMeta(txn *lmdb.Txn) error {
+func (topic *lmdbTopic) initOwnerMeta(txn *lmdb.Txn) error {
 	ownerDBName := fmt.Sprintf("%s-%s", topic.name, ownerMetaName)
 	ownerMeta, err := txn.CreateDBI(ownerDBName)
 	if err != nil {
