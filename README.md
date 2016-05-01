@@ -8,8 +8,8 @@
 [4]: https://travis-ci.org/zwb-ict/lmq
 [5]: https://goreportcard.com/badge/zwb-ict/lmq
 [6]: https://goreportcard.com/report/zwb-ict/lmq
-[7]: https://coveralls.io/repos/github/zwb-ict/lmq/badge.svg?branch=master
-[8]: https://coveralls.io/github/zwb-ict/lmq?branch=master
+[7]: https://gocover.io/_badge/github.com/zwb-ict/lmq
+[8]: https://gocover.io/github.com/zwb-ict/lmq
 
 ## Overview
 
