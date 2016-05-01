@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewLmdbQueue(t *testing.T) {
-	path := os.Getwd()
+	path, _ := os.Getwd()
 	queue := newLmdbQueue(path)
 	if queue == nil {
 		t.Error("newLmdbQueue failed")
