@@ -23,8 +23,12 @@ type lmdbQueue struct {
 func newLmdbQueue(path string) *lmdbQueue {
 	queue := &lmdbQueue{
 		path:   path,
-		env:    lmdb.NewEnv(),
 		topics: make(map[string]*Topic),
 	}
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		panic(err)
+	}
+	queue.env = env
 	return queue
 }
