@@ -6,6 +6,8 @@ go:
 env:
   global:
   - GOARCH=amd64
+script:
+  go test -race -v ./...
 notifications:
   email:
     on_success: change
