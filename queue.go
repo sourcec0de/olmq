@@ -1,9 +1,17 @@
 package lmq
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/pkg/errors"
+)
+
+const (
+	defaultTopicMapSize = 256 * 1024 * 1024
+	defaultMaxTopicNum  = 256
+	envMetaName         = "__meta__"
 )
 
 type Queue interface {
@@ -13,6 +21,11 @@ type Queue interface {
 	StopConsuming(topic Topic) bool
 }
 
+type QueueOpt struct {
+	maxTopicNum  int
+	topicMapSize int64
+}
+
 type lmdbQueue struct {
 	path   string
 	env    *lmdb.Env
@@ -20,7 +33,7 @@ type lmdbQueue struct {
 	mu     sync.Mutex
 }
 
-func newLmdbQueue(path string) *lmdbQueue {
+func newLmdbQueue(path string, opt *QueueOpt) *lmdbQueue {
 	queue := &lmdbQueue{
 		path:   path,
 		topics: make(map[string]*lmdbTopic),
@@ -30,7 +43,38 @@ func newLmdbQueue(path string) *lmdbQueue {
 		panic(err)
 	}
 	queue.env = env
+	if err = queue.conf(opt); err != nil {
+		panic(err)
+	}
+	envPath := fmt.Sprintf("%s/%s", path, envMetaName)
+	if err := env.Open(envPath, lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
+		env.Close()
+		panic(err)
+	}
+	if _, err := env.ReaderCheck(); err != nil {
+		env.Close()
+		panic(err)
+	}
 	return queue
+}
+
+func (queue *lmdbQueue) conf(opt *QueueOpt) error {
+	if opt != nil {
+		if err := queue.env.SetMapSize(opt.topicMapSize); err != nil {
+			return errors.Wrap(err, "SetMapSize failed")
+		}
+		if err := queue.env.SetMaxDBs(opt.maxTopicNum); err != nil {
+			return errors.Wrap(err, "SetMaxDBs failed")
+		}
+	} else {
+		if err := queue.env.SetMapSize(defaultTopicMapSize); err != nil {
+			return errors.Wrap(err, "Set default MapSize failed")
+		}
+		if err := queue.env.SetMaxDBs(defaultMaxTopicNum); err != nil {
+			return errors.Wrap(err, "Set default MaxDBs failed")
+		}
+	}
+	return nil
 }
 
 func (queue *lmdbQueue) Topic(name string) *lmdbTopic {

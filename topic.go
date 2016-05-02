@@ -42,6 +42,9 @@ func newLmdbTopic(env *lmdb.Env, name string) *lmdbTopic {
 		env:  env,
 		name: name,
 	}
+	if topic.env == nil {
+		return nil
+	}
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		if err := topic.initOwnerMeta(txn); err != nil {
 			return err

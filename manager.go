@@ -27,13 +27,13 @@ func init() {
 	manager = newLmdbManager()
 }
 
-func OpenQueue(path string) *lmdbQueue {
+func OpenQueue(path string, opt *QueueOpt) *lmdbQueue {
 	mu.Lock()
 	defer mu.Unlock()
 	queue := manager.queues[path]
 	if queue != nil {
 		return queue
 	}
-	queue = newLmdbQueue(path)
+	queue = newLmdbQueue(path, opt)
 	return queue
 }
