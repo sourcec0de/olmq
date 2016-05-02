@@ -35,10 +35,13 @@ type PartitionMeta struct {
 
 type lmdbTopic struct {
 	env                 *lmdb.Env
+	envPath             string
 	name                string
 	ownerMeta           lmdb.DBI
 	partitionMeta       lmdb.DBI
 	partitionMetaInited bool
+	currentPartitionID  uint64
+	currentPartitionDB  lmdb.DBI
 }
 
 func newLmdbTopic(env *lmdb.Env, name string) *lmdbTopic {
@@ -46,9 +49,7 @@ func newLmdbTopic(env *lmdb.Env, name string) *lmdbTopic {
 		env:  env,
 		name: name,
 	}
-	if topic.env == nil {
-		return nil
-	}
+	topic.envPath, _ = env.Path()
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		if err := topic.initOwnerMeta(txn); err != nil {
 			return err
@@ -100,6 +101,47 @@ func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
 	initOffset := uInt64ToBytes(0)
 	initpartitionID := uInt64ToBytes(0)
 	return txn.Put(topic.partitionMeta, initpartitionID, initOffset, lmdb.NoOverwrite)
+}
+
+func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) {
+	partitionMeta := topic.getLatestPartitionMeta(txn)
+	if rotating && topic.currentPartitionID == partitionMeta.id {
+
+	}
+	topic.currentPartitionID = partitionMeta.id
+	path := topic.getPartitionPath(topic.currentPartitionID)
+	topic.openPartitionDB(path)
+}
+
+func (topic *lmdbTopic) openPartitionDB(path string) {
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		panic(err)
+	}
+	if err := env.SetMapSize(100); err != nil {
+		panic(err)
+	}
+	if err := env.SetMaxDBs(1); err != nil {
+		panic(err)
+	}
+	if err := env.Open(path, lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
+		panic(err)
+	}
+	if _, err = env.ReaderCheck(); err != nil {
+		panic(err)
+	}
+	err = env.Update(func(txn *lmdb.Txn) error {
+		partitionName := uInt64ToString(topic.currentPartitionID)
+		topic.currentPartitionDB, err = txn.CreateDBI(partitionName)
+		return err
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (topic *lmdbTopic) getPartitionPath(id uint64) string {
+	return fmt.Sprintf("%s/%s.%d", topic.envPath, topic.name, id)
 }
 
 func (topic *lmdbTopic) getLatestPartitionMeta(txn *lmdb.Txn) *PartitionMeta {
