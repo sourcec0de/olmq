@@ -17,7 +17,6 @@ var (
 )
 
 type OwnerMeta struct{}
-type PartitionMeta struct{}
 
 type Topic interface {
 	OwnerMeta() OwnerMeta
@@ -27,6 +26,11 @@ type Topic interface {
 	RemoveOldPartitions()
 	PersistedToPartition(msg []Message) bool
 	ConsumerFromPartition() []Message
+}
+
+type PartitionMeta struct {
+	id     uint64
+	offset uint64
 }
 
 type lmdbTopic struct {
@@ -96,4 +100,20 @@ func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
 	initOffset := uInt64ToBytes(0)
 	initpartitionID := uInt64ToBytes(0)
 	return txn.Put(topic.partitionMeta, initpartitionID, initOffset, lmdb.NoOverwrite)
+}
+
+func (topic *lmdbTopic) getLatestPartitionMeta(txn *lmdb.Txn) *PartitionMeta {
+	cur, err := txn.OpenCursor(topic.partitionMeta)
+	if err != nil {
+		panic(err)
+	}
+	idBuf, offsetBuf, err := cur.Get(nil, nil, lmdb.Last)
+	if err != nil {
+		panic(err)
+	}
+	partitionMeta := &PartitionMeta{
+		id:     bytesToUInt64(idBuf),
+		offset: bytesToUInt64(offsetBuf),
+	}
+	return partitionMeta
 }
