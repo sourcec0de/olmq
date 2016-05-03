@@ -142,7 +142,10 @@ func (topic *lmdbTopic) persistedToPartition(msgs []Message) {
 }
 
 func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) {
-
+	err := txn.Put(topic.ownerMeta, keyProducerBytes, uInt64ToBytes(offset), 0)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (topic *lmdbTopic) rotate() {
