@@ -42,6 +42,8 @@ type lmdbTopic struct {
 	partitionMetaInited bool
 	currentPartitionID  uint64
 	currentPartitionDB  lmdb.DBI
+	persistedEnv        *lmdb.Env
+	consumedEnv         *lmdb.Env
 }
 
 func newLmdbTopic(env *lmdb.Env, name string) *lmdbTopic {
@@ -103,6 +105,14 @@ func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
 	return txn.Put(topic.partitionMeta, initpartitionID, initOffset, lmdb.NoOverwrite)
 }
 
+func (topic *lmdbTopic) persistedOffset(txn *lmdb.Txn) uint64 {
+	offsetBuf, err := txn.Get(topic.ownerMeta, keyProducerBytes)
+	if err != nil {
+		panic(err)
+	}
+	return bytesToUInt64(offsetBuf)
+}
+
 func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) {
 	partitionMeta := topic.getLatestPartitionMeta(txn)
 	if rotating && topic.currentPartitionID == partitionMeta.id {
@@ -138,6 +148,7 @@ func (topic *lmdbTopic) openPartitionDB(path string) {
 	if err != nil {
 		panic(err)
 	}
+	topic.persistedEnv = env
 }
 
 func (topic *lmdbTopic) getPartitionPath(id uint64) string {
