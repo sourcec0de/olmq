@@ -2,6 +2,7 @@ package lmq
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -108,8 +109,11 @@ func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
 func (topic *lmdbTopic) persistedToPartition(msgs []Message) {
 	isFull := false
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
-		offset := topic.persistedOffset(txn)
-		offset, err := topic.persistedToPartitionDB(txn, offset, msgs)
+		offset, err := topic.persistedOffset(txn)
+		if err != nil {
+			return err
+		}
+		offset, err = topic.persistedToPartitionDB(txn, offset, msgs)
 		if err == nil {
 			topic.updatePersistedOffset(txn, offset)
 			return nil
@@ -154,43 +158,118 @@ func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) {
 }
 
 func (topic *lmdbTopic) rotate() {
-
+	err := topic.env.Update(func(txn *lmdb.Txn) error {
+		if err := topic.closeCurrentPartition(txn); err != nil {
+			return err
+		}
+		expiredCount, err := topic.countExpiredPartitions(txn)
+		if err != nil {
+			return err
+		}
+		if err := topic.removeExpiredPartitions(expiredCount); err != nil {
+			return err
+		}
+		return topic.openPartitionForPersisted(txn, true)
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 
-func (topic *lmdbTopic) persistedOffset(txn *lmdb.Txn) uint64 {
+func (topic *lmdbTopic) closeCurrentPartition(txn *lmdb.Txn) error {
+	topic.env.CloseDBI(topic.currentPartitionDB)
+	return topic.env.Close()
+}
+
+func (topic *lmdbTopic) countExpiredPartitions(txn *lmdb.Txn) (uint64, error) {
+	cursor, err := txn.OpenCursor(topic.partitionMeta)
+	if err != nil {
+		return 0, err
+	}
+	beginIDBbuf, _, err := cursor.Get(nil, nil, lmdb.First)
+	if err != nil {
+		return 0, err
+	}
+	endIDBbuf, _, err := cursor.Get(nil, nil, lmdb.Last)
+	if err != nil {
+		return 0, err
+	}
+	return bytesToUInt64(endIDBbuf) - bytesToUInt64(beginIDBbuf), nil
+}
+
+func (topic *lmdbTopic) removeExpiredPartitions(expiredCount uint64) error {
+	err := topic.persistedEnv.Update(func(txn *lmdb.Txn) error {
+		cursor, err := txn.OpenCursor(topic.partitionMeta)
+		if err != nil {
+			return err
+		}
+		i := uint64(0)
+		for idBuf, _, err := cursor.Get(nil, nil, lmdb.First); err != nil && i < expiredCount; i++ {
+			id := bytesToUInt64(idBuf)
+			if err := cursor.Del(0); err != nil {
+				return err
+			}
+			partitionPath := topic.partitionPath(id)
+			if err := os.Remove(partitionPath); err != nil {
+				return err
+			}
+			if err := os.Remove(fmt.Sprintf("%s-lock", partitionPath)); err != nil {
+				return err
+			}
+			idBuf, _, err = cursor.Get(nil, nil, lmdb.Next)
+		}
+		return nil
+	})
+	return err
+}
+
+func (topic *lmdbTopic) persistedOffset(txn *lmdb.Txn) (uint64, error) {
 	offsetBuf, err := txn.Get(topic.ownerMeta, keyProducerBytes)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
-	return bytesToUInt64(offsetBuf)
+	return bytesToUInt64(offsetBuf), err
 }
 
-func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) {
-	partitionMeta := topic.getLatestPartitionMeta(txn)
+func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) error {
+	partitionMeta, err := topic.latestPartitionMeta(txn)
+	if err != nil {
+		return err
+	}
 	if rotating && topic.currentPartitionID == partitionMeta.id {
-
+		partitionMeta.id++
+		partitionMeta.offset++
+		if err := topic.updatePartitionMeta(txn, partitionMeta); err != nil {
+			return err
+		}
 	}
 	topic.currentPartitionID = partitionMeta.id
-	path := topic.getPartitionPath(topic.currentPartitionID)
-	topic.openPartitionDB(path)
+	path := topic.partitionPath(topic.currentPartitionID)
+	return topic.openPartitionDB(path)
 }
 
-func (topic *lmdbTopic) openPartitionDB(path string) {
+func (topic *lmdbTopic) updatePartitionMeta(txn *lmdb.Txn, partitionMeta *PartitionMeta) error {
+	idBuf := uInt64ToBytes(partitionMeta.id)
+	offsetBuf := uInt64ToBytes(partitionMeta.offset)
+	return txn.Put(topic.partitionMeta, idBuf, offsetBuf, lmdb.Append)
+}
+
+func (topic *lmdbTopic) openPartitionDB(path string) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	if err := env.SetMapSize(100); err != nil {
-		panic(err)
+		return err
 	}
 	if err := env.SetMaxDBs(1); err != nil {
-		panic(err)
+		return err
 	}
 	if err := env.Open(path, lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
-		panic(err)
+		return err
 	}
 	if _, err = env.ReaderCheck(); err != nil {
-		panic(err)
+		return err
 	}
 	err = env.Update(func(txn *lmdb.Txn) error {
 		partitionName := uInt64ToString(topic.currentPartitionID)
@@ -198,27 +277,28 @@ func (topic *lmdbTopic) openPartitionDB(path string) {
 		return err
 	})
 	if err != nil {
-		panic(err)
+		return err
 	}
 	topic.persistedEnv = env
+	return nil
 }
 
-func (topic *lmdbTopic) getPartitionPath(id uint64) string {
+func (topic *lmdbTopic) partitionPath(id uint64) string {
 	return fmt.Sprintf("%s/%s.%d", topic.envPath, topic.name, id)
 }
 
-func (topic *lmdbTopic) getLatestPartitionMeta(txn *lmdb.Txn) *PartitionMeta {
+func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, error) {
 	cur, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	idBuf, offsetBuf, err := cur.Get(nil, nil, lmdb.Last)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	partitionMeta := &PartitionMeta{
 		id:     bytesToUInt64(idBuf),
 		offset: bytesToUInt64(offsetBuf),
 	}
-	return partitionMeta
+	return partitionMeta, nil
 }
