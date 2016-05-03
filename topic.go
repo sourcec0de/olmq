@@ -109,16 +109,7 @@ func (topic *lmdbTopic) persistedToPartition(msgs []Message) {
 	isFull := false
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		offset := topic.persistedOffset(txn)
-		err := topic.persistedEnv.Update(func(txn *lmdb.Txn) error {
-			for _, v := range msgs {
-				offset++
-				k := uInt64ToBytes(offset)
-				if err := txn.Put(topic.currentPartitionDB, k, v, lmdb.Append); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+		offset, err := topic.persistedToPartitionDB(txn, offset, msgs)
 		if err == nil {
 			topic.updatePersistedOffset(txn, offset)
 			return nil
@@ -139,6 +130,20 @@ func (topic *lmdbTopic) persistedToPartition(msgs []Message) {
 		topic.rotate()
 		topic.persistedToPartition(msgs)
 	}
+}
+
+func (topic *lmdbTopic) persistedToPartitionDB(txn *lmdb.Txn, offset uint64, msgs []Message) (uint64, error) {
+	err := topic.persistedEnv.Update(func(txn *lmdb.Txn) error {
+		for _, v := range msgs {
+			offset++
+			k := uInt64ToBytes(offset)
+			if err := txn.Put(topic.currentPartitionDB, k, v, lmdb.Append); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return offset, err
 }
 
 func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) {
