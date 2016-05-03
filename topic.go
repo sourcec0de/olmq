@@ -105,6 +105,50 @@ func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
 	return txn.Put(topic.partitionMeta, initpartitionID, initOffset, lmdb.NoOverwrite)
 }
 
+func (topic *lmdbTopic) persistedToPartition(msgs []Message) {
+	isFull := false
+	err := topic.env.Update(func(txn *lmdb.Txn) error {
+		offset := topic.persistedOffset(txn)
+		err := topic.persistedEnv.Update(func(txn *lmdb.Txn) error {
+			for _, v := range msgs {
+				offset++
+				k := uInt64ToBytes(offset)
+				if err := txn.Put(topic.currentPartitionDB, k, v, lmdb.Append); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err == nil {
+			topic.updatePersistedOffset(txn, offset)
+			return nil
+		}
+		return err
+	})
+	if err == nil {
+		return
+	}
+	if err, ok := err.(*lmdb.OpError); ok {
+		if err.Errno == lmdb.MapFull {
+			isFull = true
+		} else {
+			panic(err.Errno)
+		}
+	}
+	if isFull {
+		topic.rotate()
+		topic.persistedToPartition(msgs)
+	}
+}
+
+func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) {
+
+}
+
+func (topic *lmdbTopic) rotate() {
+
+}
+
 func (topic *lmdbTopic) persistedOffset(txn *lmdb.Txn) uint64 {
 	offsetBuf, err := txn.Get(topic.ownerMeta, keyProducerBytes)
 	if err != nil {
