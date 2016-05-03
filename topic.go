@@ -115,8 +115,7 @@ func (topic *lmdbTopic) persistedToPartition(msgs []Message) {
 		}
 		offset, err = topic.persistedToPartitionDB(txn, offset, msgs)
 		if err == nil {
-			topic.updatePersistedOffset(txn, offset)
-			return nil
+			return topic.updatePersistedOffset(txn, offset)
 		}
 		return err
 	})
@@ -150,11 +149,9 @@ func (topic *lmdbTopic) persistedToPartitionDB(txn *lmdb.Txn, offset uint64, msg
 	return offset, err
 }
 
-func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) {
+func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) error {
 	err := txn.Put(topic.ownerMeta, keyProducerBytes, uInt64ToBytes(offset), 0)
-	if err != nil {
-		panic(err)
-	}
+	return err
 }
 
 func (topic *lmdbTopic) rotate() {
