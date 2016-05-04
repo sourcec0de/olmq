@@ -219,8 +219,8 @@ func (topic *lmdbTopic) persistedRotate() {
 }
 
 func (topic *lmdbTopic) closeCurrentPersistedPartition(txn *lmdb.Txn) error {
-	topic.env.CloseDBI(topic.currentPartitionDB)
-	return topic.env.Close()
+	topic.persistedEnv.CloseDBI(topic.currentPartitionDB)
+	return topic.persistedEnv.Close()
 }
 
 func (topic *lmdbTopic) countPartitions(txn *lmdb.Txn) (uint64, error) {
