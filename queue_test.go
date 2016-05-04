@@ -26,7 +26,7 @@ func TestTopic(t *testing.T) {
 	if queue == nil {
 		t.Error("newLmdbQueue failed")
 	}
-	topic := queue.Topic("GetTopic", 0, nil)
+	topic := queue.Topic("GetTopic", nil)
 	if topic == nil {
 		t.Error("Topic failed")
 	}
@@ -41,7 +41,7 @@ func TestSendMessage(t *testing.T) {
 	if queue == nil {
 		t.Error("newLmdbQueue failed")
 	}
-	topic := queue.Topic("GetTopic", 0, nil)
+	topic := queue.Topic("GetTopic", nil)
 	if topic == nil {
 		t.Error("Topic failed")
 	}
