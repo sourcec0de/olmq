@@ -18,7 +18,7 @@ const (
 
 var (
 	keyProducerBytes = []byte("producer_head")
-	preConsumerStr   = "consumer_head_"
+	preConsumerStr   = "consumer_head"
 )
 
 type OwnerMeta struct{}
@@ -330,4 +330,27 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 		offset: bytesToUInt64(offsetBuf),
 	}
 	return partitionMeta, nil
+}
+
+func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint64, error) {
+	keyConsumserStr := fmt.Sprintf("%s_%s", preConsumerStr, consumerTag)
+	offsetBuf, err := txn.Get(topic.ownerMeta, []byte(keyConsumserStr))
+	if err == nil {
+		offset := bytesToUInt64(offsetBuf)
+		return offset, nil
+	}
+	if err, ok := err.(*lmdb.OpError); ok {
+		if err.Errno != lmdb.NotFound {
+			return 0, err.Errno
+		}
+	}
+	cursor, err := txn.OpenCursor(topic.partitionMeta)
+	if err != nil {
+		return 0, err
+	}
+	_, offsetBuf, err = cursor.Get(nil, nil, lmdb.First)
+	if err != nil {
+		return 0, err
+	}
+	return bytesToUInt64(offsetBuf), nil
 }
