@@ -24,7 +24,6 @@ type Topic interface {
 	UpdatOwnerMeta(om OwnerMeta)
 	PartitionMeta() PartitionMeta
 	UpdatePartitionMeta(pm PartitionMeta) bool
-	RemoveOldPartitions()
 	PersistedToPartition(msg []Message) bool
 	ConsumerFromPartition() []Message
 }
@@ -106,7 +105,7 @@ func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
 	return txn.Put(topic.partitionMeta, initpartitionID, initOffset, lmdb.NoOverwrite)
 }
 
-func (topic *lmdbTopic) persistedToPartition(msgs []Message) {
+func (topic *lmdbTopic) PersistedToPartition(msgs []Message) {
 	isFull := false
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		offset, err := topic.persistedOffset(txn)
@@ -131,7 +130,7 @@ func (topic *lmdbTopic) persistedToPartition(msgs []Message) {
 	}
 	if isFull {
 		topic.rotate()
-		topic.persistedToPartition(msgs)
+		topic.PersistedToPartition(msgs)
 	}
 }
 

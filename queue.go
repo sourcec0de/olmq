@@ -16,7 +16,7 @@ const (
 
 type Queue interface {
 	Topic(name string) Topic
-	SendMessage(topic Topic, msg []Message) bool
+	SendMessage(topic Topic, msg []Message)
 	StartConsuming(topic Topic, maxFetch uint) bool
 	StopConsuming(topic Topic) bool
 }
@@ -48,11 +48,11 @@ func newLmdbQueue(path string, opt *QueueOpt) *lmdbQueue {
 	}
 	envPath := fmt.Sprintf("%s/%s", path, envMetaName)
 	if err := env.Open(envPath, lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
-		env.Close()
+		_ = env.Close()
 		panic(err)
 	}
 	if _, err := env.ReaderCheck(); err != nil {
-		env.Close()
+		_ = env.Close()
 		panic(err)
 	}
 	return queue
@@ -87,4 +87,8 @@ func (queue *lmdbQueue) Topic(name string) *lmdbTopic {
 	topic = newLmdbTopic(queue.env, name)
 	queue.topics[name] = topic
 	return topic
+}
+
+func (queue *lmdbQueue) SendMessage(topic *lmdbTopic, msg []Message) {
+	topic.PersistedToPartition(msg)
 }
