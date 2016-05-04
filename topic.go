@@ -185,6 +185,15 @@ func (topic *lmdbTopic) OpenPartitionForPersisted() {
 	}
 }
 
+func (topic *lmdbTopic) OpenPartitionForConsuming(consumerTag string) {
+	err := topic.env.Update(func(txn *lmdb.Txn) error {
+		return topic.openPartitionForConsuming(txn, consumerTag)
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (topic *lmdbTopic) rotate() {
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		if err := topic.closeCurrentPartition(txn); err != nil {
@@ -332,6 +341,10 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 		offset: bytesToUInt64(offsetBuf),
 	}
 	return partitionMeta, nil
+}
+
+func (topic *lmdbTopic) ConsumingPartition() {
+
 }
 
 func (topic *lmdbTopic) openPartitionForConsuming(txn *lmdb.Txn, consumerTag string) error {
