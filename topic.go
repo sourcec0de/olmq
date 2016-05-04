@@ -48,14 +48,16 @@ type lmdbTopic struct {
 	envPath             string
 	root                string
 	name                string
+	opt                 *TopicOpt
+	currentPartitionID  uint64
+	currentPartitionDB  lmdb.DBI
 	ownerMeta           lmdb.DBI
 	partitionMeta       lmdb.DBI
 	partitionMetaInited bool
-	currentPartitionID  uint64
-	currentPartitionDB  lmdb.DBI
 	persistedEnv        *lmdb.Env
 	consumedEnv         *lmdb.Env
-	opt                 *TopicOpt
+	consumingCursor     *lmdb.Cursor
+	consumingTxn        *lmdb.Txn
 }
 
 func newLmdbTopic(env *lmdb.Env, name string, opt *TopicOpt) *lmdbTopic {
@@ -274,7 +276,7 @@ func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) 
 	}
 	topic.currentPartitionID = partitionMeta.id
 	path := topic.partitionPath(topic.currentPartitionID)
-	return topic.openPartitionDB(path)
+	return topic.openPersistedDB(path)
 }
 
 func (topic *lmdbTopic) updatePartitionMeta(txn *lmdb.Txn, partitionMeta *PartitionMeta) error {
@@ -283,7 +285,7 @@ func (topic *lmdbTopic) updatePartitionMeta(txn *lmdb.Txn, partitionMeta *Partit
 	return txn.Put(topic.partitionMeta, idBuf, offsetBuf, lmdb.Append)
 }
 
-func (topic *lmdbTopic) openPartitionDB(path string) error {
+func (topic *lmdbTopic) openPersistedDB(path string) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		return err
@@ -330,6 +332,45 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 		offset: bytesToUInt64(offsetBuf),
 	}
 	return partitionMeta, nil
+}
+
+func (topic *lmdbTopic) openConsumingDB(path string) error {
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		return nil
+	}
+	topic.consumedEnv = env
+	if err = env.SetMaxDBs(1); err != nil {
+		return err
+	}
+	if err = env.SetMapSize(topic.opt.partitionSize); err != nil {
+		return err
+	}
+	if err = env.Open(path, lmdb.Readonly|lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
+		return err
+	}
+	if _, err = env.ReaderCheck(); err != nil {
+		return err
+	}
+	err = env.View(func(txn *lmdb.Txn) error {
+		topic.currentPartitionDB, err = txn.CreateDBI(uInt64ToString(topic.currentPartitionID))
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	rtxn, err := env.BeginTxn(nil, lmdb.Readonly)
+	if err != nil {
+		return err
+	}
+	topic.consumingTxn = rtxn
+	cursor, err := rtxn.OpenCursor(topic.currentPartitionDB)
+	if err != nil {
+		return err
+	}
+	topic.consumingCursor = cursor
+	rtxn.Reset()
+	return rtxn.Renew()
 }
 
 func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, searchFrom uint64) (uint64, error) {
