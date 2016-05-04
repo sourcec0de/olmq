@@ -332,6 +332,30 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 	return partitionMeta, nil
 }
 
+func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, searchFrom uint64) (uint64, error) {
+	offset, err := topic.consumingOffset(txn, consumerTag)
+	if err != nil {
+		return 0, err
+	}
+	cursor, err := txn.OpenCursor(topic.partitionMeta)
+	if err != nil {
+		return 0, err
+	}
+	idBuf, eoffsetBuf, err := cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.SetRange)
+	if err != nil {
+		return 0, err
+	}
+	eoffset := bytesToUInt64(eoffsetBuf)
+	for offset > eoffset {
+		idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
+		if err != nil {
+			return 0, err
+		}
+		eoffset = bytesToUInt64(eoffsetBuf)
+	}
+	return bytesToUInt64(idBuf), nil
+}
+
 func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint64, error) {
 	keyConsumserStr := fmt.Sprintf("%s_%s", preConsumerStr, consumerTag)
 	offsetBuf, err := txn.Get(topic.ownerMeta, []byte(keyConsumserStr))
