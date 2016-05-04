@@ -3,6 +3,7 @@ package lmq
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -10,6 +11,9 @@ import (
 const (
 	ownerMetaName     = "ownerMeta"
 	partitionMetaName = "partitionMeta"
+
+	defaultPartitionSize    = 1024 * 1024 * 1024
+	defaultPartitionsToKeep = 8
 )
 
 var (
@@ -25,6 +29,7 @@ type Topic interface {
 	PartitionMeta() PartitionMeta
 	UpdatePartitionMeta(pm PartitionMeta) bool
 	PersistedToPartition(msg []Message) bool
+	OpenPartitionForPersisted()
 	ConsumerFromPartition() []Message
 }
 
@@ -33,9 +38,15 @@ type PartitionMeta struct {
 	offset uint64
 }
 
+type TopicOpt struct {
+	partitionSize    int64
+	partitionsToKeep uint64
+}
+
 type lmdbTopic struct {
 	env                 *lmdb.Env
 	envPath             string
+	root                string
 	name                string
 	ownerMeta           lmdb.DBI
 	partitionMeta       lmdb.DBI
@@ -44,14 +55,24 @@ type lmdbTopic struct {
 	currentPartitionDB  lmdb.DBI
 	persistedEnv        *lmdb.Env
 	consumedEnv         *lmdb.Env
+	opt                 *TopicOpt
 }
 
-func newLmdbTopic(env *lmdb.Env, name string) *lmdbTopic {
+func newLmdbTopic(env *lmdb.Env, name string, opt *TopicOpt) *lmdbTopic {
 	topic := &lmdbTopic{
 		env:  env,
 		name: name,
 	}
 	topic.envPath, _ = env.Path()
+	topic.root = strings.TrimRight(topic.envPath, envMetaName)
+	if opt != nil {
+		topic.opt = opt
+	} else {
+		topic.opt = &TopicOpt{
+			partitionSize:    defaultPartitionSize,
+			partitionsToKeep: defaultPartitionsToKeep,
+		}
+	}
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		if err := topic.initOwnerMeta(txn); err != nil {
 			return err
@@ -153,17 +174,29 @@ func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) erro
 	return err
 }
 
+func (topic *lmdbTopic) OpenPartitionForPersisted() {
+	err := topic.env.Update(func(txn *lmdb.Txn) error {
+		return topic.openPartitionForPersisted(txn, false)
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (topic *lmdbTopic) rotate() {
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		if err := topic.closeCurrentPartition(txn); err != nil {
 			return err
 		}
-		expiredCount, err := topic.countExpiredPartitions(txn)
+		count, err := topic.countPartitions(txn)
 		if err != nil {
 			return err
 		}
-		if err := topic.removeExpiredPartitions(expiredCount); err != nil {
-			return err
+		if count > topic.opt.partitionsToKeep {
+			expiredCount := count - topic.opt.partitionsToKeep
+			if err := topic.removeExpiredPartitions(expiredCount); err != nil {
+				return err
+			}
 		}
 		return topic.openPartitionForPersisted(txn, true)
 	})
@@ -177,7 +210,7 @@ func (topic *lmdbTopic) closeCurrentPartition(txn *lmdb.Txn) error {
 	return topic.env.Close()
 }
 
-func (topic *lmdbTopic) countExpiredPartitions(txn *lmdb.Txn) (uint64, error) {
+func (topic *lmdbTopic) countPartitions(txn *lmdb.Txn) (uint64, error) {
 	cursor, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
 		return 0, err
@@ -255,7 +288,7 @@ func (topic *lmdbTopic) openPartitionDB(path string) error {
 	if err != nil {
 		return err
 	}
-	if err := env.SetMapSize(100); err != nil {
+	if err := env.SetMapSize(topic.opt.partitionSize); err != nil {
 		return err
 	}
 	if err := env.SetMaxDBs(1); err != nil {
@@ -280,7 +313,7 @@ func (topic *lmdbTopic) openPartitionDB(path string) error {
 }
 
 func (topic *lmdbTopic) partitionPath(id uint64) string {
-	return fmt.Sprintf("%s/%s.%d", topic.envPath, topic.name, id)
+	return fmt.Sprintf("%s/%s.%d", topic.root, topic.name, id)
 }
 
 func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, error) {

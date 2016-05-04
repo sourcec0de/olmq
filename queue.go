@@ -77,15 +77,21 @@ func (queue *lmdbQueue) conf(opt *QueueOpt) error {
 	return nil
 }
 
-func (queue *lmdbQueue) Topic(name string) *lmdbTopic {
+func (queue *lmdbQueue) Topic(name string, flag byte, opt *TopicOpt) *lmdbTopic {
 	queue.mu.Lock()
 	defer queue.mu.Unlock()
 	topic := queue.topics[name]
 	if topic != nil {
 		return topic
 	}
-	topic = newLmdbTopic(queue.env, name)
+	topic = newLmdbTopic(queue.env, name, opt)
 	queue.topics[name] = topic
+	switch flag {
+	case 0:
+		topic.OpenPartitionForPersisted()
+	default:
+		break
+	}
 	return topic
 }
 
