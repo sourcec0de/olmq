@@ -198,7 +198,7 @@ func (topic *lmdbTopic) OpenPartitionForConsuming(consumerTag string) {
 
 func (topic *lmdbTopic) persistedRotate() {
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
-		if err := topic.closeCurrentPartition(txn); err != nil {
+		if err := topic.closeCurrentPersistedPartition(txn); err != nil {
 			return err
 		}
 		count, err := topic.countPartitions(txn)
@@ -218,7 +218,7 @@ func (topic *lmdbTopic) persistedRotate() {
 	}
 }
 
-func (topic *lmdbTopic) closeCurrentPartition(txn *lmdb.Txn) error {
+func (topic *lmdbTopic) closeCurrentPersistedPartition(txn *lmdb.Txn) error {
 	topic.env.CloseDBI(topic.currentPartitionDB)
 	return topic.env.Close()
 }
