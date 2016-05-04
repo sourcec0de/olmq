@@ -334,6 +334,16 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 	return partitionMeta, nil
 }
 
+func (topic *lmdbTopic) openPartitionForConsuming(txn *lmdb.Txn, consumerTag string) error {
+	currentPartitionID, err := topic.consumingPartitionID(txn, consumerTag, topic.currentPartitionID)
+	if err != nil {
+		return err
+	}
+	topic.currentPartitionID = currentPartitionID
+	path := topic.partitionPath(topic.currentPartitionID)
+	return topic.openConsumingDB(path)
+}
+
 func (topic *lmdbTopic) openConsumingDB(path string) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
