@@ -58,6 +58,7 @@ type lmdbTopic struct {
 	consumedEnv         *lmdb.Env
 	consumingCursor     *lmdb.Cursor
 	consumingTxn        *lmdb.Txn
+	consumerTag         string
 }
 
 func newLmdbTopic(env *lmdb.Env, name string, opt *TopicOpt) *lmdbTopic {
@@ -152,7 +153,7 @@ func (topic *lmdbTopic) PersistedToPartition(msgs []Message) {
 		}
 	}
 	if isFull {
-		topic.rotate()
+		topic.persistedRotate()
 		topic.PersistedToPartition(msgs)
 	}
 }
@@ -186,6 +187,7 @@ func (topic *lmdbTopic) OpenPartitionForPersisted() {
 }
 
 func (topic *lmdbTopic) OpenPartitionForConsuming(consumerTag string) {
+	topic.consumerTag = consumerTag
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		return topic.openPartitionForConsuming(txn, consumerTag)
 	})
@@ -194,7 +196,7 @@ func (topic *lmdbTopic) OpenPartitionForConsuming(consumerTag string) {
 	}
 }
 
-func (topic *lmdbTopic) rotate() {
+func (topic *lmdbTopic) persistedRotate() {
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		if err := topic.closeCurrentPartition(txn); err != nil {
 			return err
