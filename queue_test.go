@@ -30,6 +30,7 @@ func TestTopic(t *testing.T) {
 	if topic == nil {
 		t.Error("Topic failed")
 	}
+	topic.OpenPartitionForPersisted()
 }
 
 func TestSendMessage(t *testing.T) {
@@ -45,6 +46,7 @@ func TestSendMessage(t *testing.T) {
 	if topic == nil {
 		t.Error("Topic failed")
 	}
+	topic.OpenPartitionForPersisted()
 	msgs := make([]Message, 2)
 	msgs[0] = []byte("hello")
 	msgs[1] = []byte("world")
