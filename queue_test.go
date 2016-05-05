@@ -75,7 +75,7 @@ func TestConsumingMessage(t *testing.T) {
 	topic.OpenPartitionForConsuming("test1")
 	rmsgs := make([]Message, 2)
 	queue.SendMessage(topic, rmsgs)
-	if !bytes.Equal(msgs[0], rmsgs[0]) || !bytes.Compare(msgs[1], rmsgs[1]) {
+	if !bytes.Equal(msgs[0], rmsgs[0]) || !bytes.Equal(msgs[1], rmsgs[1]) {
 		t.Error("Consuming failed")
 	}
 }
