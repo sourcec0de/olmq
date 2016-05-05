@@ -17,7 +17,7 @@ const (
 type Queue interface {
 	Topic(name string) Topic
 	SendMessage(topic Topic, msg []Message)
-	SendMessage(topic Topic, msg []Message)
+	ConsumingMessage(topic Topic, msg []Message)
 }
 
 type QueueOpt struct {
