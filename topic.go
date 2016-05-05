@@ -387,8 +387,8 @@ func (topic *lmdbTopic) ConsumingPartition(out []Message) {
 				for cnt := cap(out); err == nil && cnt > 0; cnt-- {
 					out[i] = payload
 					i++
-					offsetBuf, payload, err = topic.consumingCursor.Get(nil, nil, lmdb.Next)
 					offset = bytesToUInt64(offsetBuf)
+					offsetBuf, payload, err = topic.consumingCursor.Get(nil, nil, lmdb.Next)
 				}
 				if offset > 0 {
 					err := topic.updateConsumingOffset(txn, topic.consumerTag, offset+1)
