@@ -223,9 +223,11 @@ func (topic *lmdbTopic) closeCurrentPersistedPartition() error {
 	return topic.persistedEnv.Close()
 }
 
-func (topic *lmdbTopic) closeCurrentConsumingPartition(txn *lmdb.Txn) error {
+func (topic *lmdbTopic) closeCurrentConsumingPartition() error {
+	topic.consumingCursor.Close()
+	topic.consumingTxn.Abort()
 	topic.consumedEnv.CloseDBI(topic.currentPartitionDB)
-
+	return topic.consumedEnv.Close()
 }
 
 func (topic *lmdbTopic) countPartitions(txn *lmdb.Txn) (uint64, error) {
