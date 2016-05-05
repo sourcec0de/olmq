@@ -22,8 +22,6 @@ var (
 	preConsumerStr   = "consumer_head"
 )
 
-type OwnerMeta struct{}
-
 type Topic interface {
 	OpenPartitionForPersisted()
 	PersistedToPartition(msg []Message)
