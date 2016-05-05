@@ -2,6 +2,7 @@ package lmq
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -218,13 +219,16 @@ func (topic *lmdbTopic) persistedRotate() {
 	}
 }
 
-func (topic *lmdbTopic) consumingRotate() error {
-	return topic.env.Update(func(txn *lmdb.Txn) error {
+func (topic *lmdbTopic) consumingRotate() {
+	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		if err := topic.closeCurrentConsumingPartition(); err != nil {
 			return err
 		}
 		return topic.openPartitionForConsuming(txn, topic.consumerTag)
 	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (topic *lmdbTopic) closeCurrentPersistedPartition() error {
@@ -361,8 +365,63 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 	return partitionMeta, nil
 }
 
-func (topic *lmdbTopic) ConsumingPartition() {
+func (topic *lmdbTopic) ConsumingPartition(out []Message) {
+	shouldRotate := false
+	{
+		err := topic.env.Update(func(txn *lmdb.Txn) error {
+			pOffset, err := topic.persistedOffset(txn)
+			if err != nil {
+				return err
+			}
+			cOffset, err := topic.consumingOffset(txn, topic.consumerTag)
+			if err != nil {
+				return err
+			}
+			if pOffset-cOffset == 1 || pOffset == 0 {
+				return nil
+			}
+			offsetBuf, payload, err := topic.consumingCursor.Get(uInt64ToBytes(cOffset), nil, lmdb.SetRange)
+			if err == nil {
+				i := 0
+				offset := bytesToUInt64(offsetBuf)
+				for cnt := cap(out); err == nil && cnt > 0; cnt-- {
+					out[i] = payload
+					i++
+					offsetBuf, payload, err = topic.consumingCursor.Get(nil, nil, lmdb.Next)
+					offset = bytesToUInt64(offsetBuf)
+				}
+				if offset > 0 {
+					topic.updateConsumingOffset(txn, topic.consumerTag, offset+1)
+				}
+			} else {
+				if err, ok := err.(*lmdb.OpError); ok {
+					if err.Errno != lmdb.NotFound {
+						log.Println(err)
+					}
+				}
+				pOffset, err := topic.persistedOffset(txn)
+				if err != nil {
+					return err
+				}
+				if cOffset <= pOffset {
+					shouldRotate = true
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
+	if shouldRotate {
+		topic.consumingRotate()
+		topic.ConsumingPartition(out)
+	}
+}
 
+func (topic *lmdbTopic) updateConsumingOffset(txn *lmdb.Txn, consumerTag string, offset uint64) error {
+	keyConsumerStr := fmt.Sprintf("%s_%s", preConsumerStr, consumerTag)
+	return txn.Put(topic.ownerMeta, []byte(keyConsumerStr), uInt64ToBytes(offset), 0)
 }
 
 func (topic *lmdbTopic) openPartitionForConsuming(txn *lmdb.Txn, consumerTag string) error {
