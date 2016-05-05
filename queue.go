@@ -92,3 +92,7 @@ func (queue *lmdbQueue) Topic(name string, opt *TopicOpt) *lmdbTopic {
 func (queue *lmdbQueue) SendMessage(topic *lmdbTopic, msg []Message) {
 	topic.PersistedToPartition(msg)
 }
+
+func (queue *lmdbQueue) ConsumingMessage(topic *lmdbTopic, out []Message) {
+	topic.ConsumingPartition(out)
+}
