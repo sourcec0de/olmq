@@ -25,13 +25,10 @@ var (
 type OwnerMeta struct{}
 
 type Topic interface {
-	OwnerMeta() OwnerMeta
-	UpdatOwnerMeta(om OwnerMeta)
-	PartitionMeta() PartitionMeta
-	UpdatePartitionMeta(pm PartitionMeta) bool
-	PersistedToPartition(msg []Message) bool
 	OpenPartitionForPersisted()
-	ConsumerFromPartition() []Message
+	PersistedToPartition(msg []Message)
+	ConsumerFromPartition(out []Message)
+	OpenPartitionForConsuming(consumerTag string)
 }
 
 type PartitionMeta struct {

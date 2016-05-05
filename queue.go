@@ -17,8 +17,7 @@ const (
 type Queue interface {
 	Topic(name string) Topic
 	SendMessage(topic Topic, msg []Message)
-	StartConsuming(topic Topic, maxFetch uint) bool
-	StopConsuming(topic Topic) bool
+	SendMessage(topic Topic, msg []Message)
 }
 
 type QueueOpt struct {
