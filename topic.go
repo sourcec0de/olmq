@@ -218,6 +218,15 @@ func (topic *lmdbTopic) persistedRotate() {
 	}
 }
 
+func (topic *lmdbTopic) consumingRotate() error {
+	return topic.env.Update(func(txn *lmdb.Txn) error {
+		if err := topic.closeCurrentConsumingPartition(); err != nil {
+			return err
+		}
+		return topic.openPartitionForConsuming(txn, topic.consumerTag)
+	})
+}
+
 func (topic *lmdbTopic) closeCurrentPersistedPartition() error {
 	topic.persistedEnv.CloseDBI(topic.currentPartitionDB)
 	return topic.persistedEnv.Close()
