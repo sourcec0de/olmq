@@ -391,7 +391,10 @@ func (topic *lmdbTopic) ConsumingPartition(out []Message) {
 					offset = bytesToUInt64(offsetBuf)
 				}
 				if offset > 0 {
-					topic.updateConsumingOffset(txn, topic.consumerTag, offset+1)
+					err := topic.updateConsumingOffset(txn, topic.consumerTag, offset+1)
+					if err != nil {
+						return err
+					}
 				}
 			} else {
 				if err, ok := err.(*lmdb.OpError); ok {
