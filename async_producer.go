@@ -71,7 +71,31 @@ func NewAsyncProducerWithQueue(queue Queue) (AsyncProducer, error) {
 }
 
 func (p *asyncProducer) dispatcher() {
+	handlers := make(map[string]chan<- *ProducerMessage)
+	//shuttingDown := false
 
+	for msg := range p.input {
+		if msg == nil {
+			// TODO: add logger, ignored nil msg
+			continue
+		}
+		/* TODO: add add shutDown handle
+		if msg.flags&shutDown != 0 {
+			shuttingDown = true
+			p.inFight.Done()
+			continue
+		}
+		*/
+		handler := handlers[msg.Topic]
+		if handler == nil {
+			// handler = p.newTopicProducer(msg.Topic) fix me impl newTopicProducer
+			handlers[msg.Topic] = handler
+		}
+		handler <- msg
+	}
+	for _, handler := range handlers {
+		close(handler)
+	}
 }
 
 func (p *asyncProducer) AsyncClose() {
