@@ -58,7 +58,20 @@ func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
 }
 
 func NewAsyncProducerWithQueue(queue Queue) (AsyncProducer, error) {
-	return nil, nil
+	// TODO: Add queue.Closed
+	p := &asyncProducer{
+		queue:     queue,
+		conf:      nil, // fix me: to queue.Config
+		errors:    make(chan *ProducerError),
+		input:     make(chan *ProducerMessage),
+		successes: make(chan *ProducerMessage),
+	}
+	go withRecover(p.dispatcher)
+	return p, nil
+}
+
+func (p *asyncProducer) dispatcher() {
+
 }
 
 func (p *asyncProducer) AsyncClose() {
