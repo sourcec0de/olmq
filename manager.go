@@ -8,12 +8,12 @@ type Manager interface {
 }
 
 type lmdbManager struct {
-	queues map[string]*lmdbQueue
+	queues map[string]Queue
 }
 
 func newLmdbManager() *lmdbManager {
 	manager := &lmdbManager{
-		queues: make(map[string]*lmdbQueue),
+		queues: make(map[string]Queue),
 	}
 	return manager
 }
@@ -27,7 +27,7 @@ func init() {
 	manager = newLmdbManager()
 }
 
-func OpenQueue(path string, opt *QueueOpt) *lmdbQueue {
+func OpenQueue(path string, opt *QueueOpt) Queue {
 	mu.Lock()
 	defer mu.Unlock()
 	queue := manager.queues[path]

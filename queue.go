@@ -15,7 +15,7 @@ const (
 )
 
 type Queue interface {
-	Topic(name string) Topic
+	Topic(name string, opt *TopicOpt) Topic
 	SendMessage(topic Topic, msg []Message)
 	ConsumingMessage(topic Topic, msg []Message)
 }
@@ -28,14 +28,14 @@ type QueueOpt struct {
 type lmdbQueue struct {
 	path   string
 	env    *lmdb.Env
-	topics map[string]*lmdbTopic
+	topics map[string]Topic
 	mu     sync.Mutex
 }
 
-func newLmdbQueue(path string, opt *QueueOpt) *lmdbQueue {
+func newLmdbQueue(path string, opt *QueueOpt) Queue {
 	queue := &lmdbQueue{
 		path:   path,
-		topics: make(map[string]*lmdbTopic),
+		topics: make(map[string]Topic),
 	}
 	env, err := lmdb.NewEnv()
 	if err != nil {
@@ -76,7 +76,7 @@ func (queue *lmdbQueue) conf(opt *QueueOpt) error {
 	return nil
 }
 
-func (queue *lmdbQueue) Topic(name string, opt *TopicOpt) *lmdbTopic {
+func (queue *lmdbQueue) Topic(name string, opt *TopicOpt) Topic {
 	queue.mu.Lock()
 	defer queue.mu.Unlock()
 	topic := queue.topics[name]
@@ -88,10 +88,10 @@ func (queue *lmdbQueue) Topic(name string, opt *TopicOpt) *lmdbTopic {
 	return topic
 }
 
-func (queue *lmdbQueue) SendMessage(topic *lmdbTopic, msg []Message) {
+func (queue *lmdbQueue) SendMessage(topic Topic, msg []Message) {
 	topic.PersistedToPartition(msg)
 }
 
-func (queue *lmdbQueue) ConsumingMessage(topic *lmdbTopic, out []Message) {
-	topic.ConsumingPartition(out)
+func (queue *lmdbQueue) ConsumingMessage(topic Topic, out []Message) {
+	topic.ConsumingFromPartition(out)
 }

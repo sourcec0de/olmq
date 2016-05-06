@@ -25,7 +25,7 @@ var (
 type Topic interface {
 	OpenPartitionForPersisted()
 	PersistedToPartition(msg []Message)
-	ConsumerFromPartition(out []Message)
+	ConsumingFromPartition(out []Message)
 	OpenPartitionForConsuming(consumerTag string)
 }
 
@@ -360,7 +360,7 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 	return partitionMeta, nil
 }
 
-func (topic *lmdbTopic) ConsumingPartition(out []Message) {
+func (topic *lmdbTopic) ConsumingFromPartition(out []Message) {
 	shouldRotate := false
 	{
 		err := topic.env.Update(func(txn *lmdb.Txn) error {
@@ -413,7 +413,7 @@ func (topic *lmdbTopic) ConsumingPartition(out []Message) {
 	}
 	if shouldRotate {
 		topic.consumingRotate()
-		topic.ConsumingPartition(out)
+		topic.ConsumingFromPartition(out)
 	}
 }
 
