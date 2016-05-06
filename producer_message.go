@@ -4,8 +4,9 @@ type flagSet int8 // why int8
 
 // ProducerMessage is the collection of elements passed to the Producer in order to send a message.
 type ProducerMessage struct {
-	Topic string
-	flags flagSet
+	Topic     string
+	flags     flagSet
+	Partition uint64
 }
 
 // ProducerError is the type of error generated when the producer fails to deliver a message.
