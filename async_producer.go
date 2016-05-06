@@ -1,5 +1,7 @@
 package lmq
 
+import "sync"
+
 // AsyncProducer publishes messages using a non-blocking API. You must read from the
 // Errors() channel or the producer will deadlock. You must call Close() or AsyncClose()
 // on a producer to avoid leaks: it will not be garbage-collected automatically when it
@@ -34,4 +36,14 @@ type AsyncProducer interface {
 	// you can set Producer.Return.Errors in your config to false, which prevents
 	// errors to be returned.
 	Errors() <-chan *ProducerError
+}
+
+type asyncProducer struct {
+	queue    Queue // Queue type is an interface
+	conf     *Config
+	ownQueue bool
+
+	errors  chan *ProducerError
+	input   chan *ProducerMessage
+	inFight sync.WaitGroup
 }
