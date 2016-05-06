@@ -117,3 +117,12 @@ func (p *asyncProducer) Input() chan<- *ProducerMessage {
 func (p *asyncProducer) Successes() <-chan *ProducerMessage {
 	return p.successes
 }
+
+type topicProducer struct {
+	parent *asyncProducer
+	topic  string
+	input  <-chan *ProducerMessage
+
+	handlers    map[uint64]chan<- *ProducerMessage
+	partitioner Partitioner
+}
