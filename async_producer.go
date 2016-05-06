@@ -88,7 +88,7 @@ func (p *asyncProducer) dispatcher() {
 		*/
 		handler := handlers[msg.Topic]
 		if handler == nil {
-			// handler = p.newTopicProducer(msg.Topic) fix me impl newTopicProducer
+			handler = p.newTopicProducer(msg.Topic)
 			handlers[msg.Topic] = handler
 		}
 		handler <- msg
@@ -125,4 +125,21 @@ type topicProducer struct {
 
 	handlers    map[uint64]chan<- *ProducerMessage
 	partitioner Partitioner
+}
+
+func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
+	input := make(chan *ProducerMessage, 100) // fix me: change 100 to one of Config
+	tp := &topicProducer{
+		parent:      p,
+		topic:       topic,
+		input:       input,
+		handlers:    make(map[uint64]chan<- *ProducerMessage),
+		partitioner: nil, // TODO: call openPartitionForPersisted
+	}
+	go withRecover(tp.dispatch)
+	return input
+}
+
+func (tp *topicProducer) dispatch() {
+
 }
