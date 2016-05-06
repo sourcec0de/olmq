@@ -10,8 +10,7 @@ type AsyncProducer interface {
 
 	// AsyncClose triggers a shutdown of the producer, flushing any messages it may
 	// have buffered. The shutdown has completed when both the Errors and Successes
-	// channels have been closed. When calling AsyncClose, you *must* continue to
-	// read from those channels in order to drain the results of any messages in
+	// channels have been closed. When calling AsyncClose, you *must* continue to // read from those channels in order to drain the results of any messages in
 	// flight.
 	AsyncClose()
 
@@ -43,7 +42,41 @@ type asyncProducer struct {
 	conf     *Config
 	ownQueue bool
 
-	errors  chan *ProducerError
-	input   chan *ProducerMessage
-	inFight sync.WaitGroup
+	errors           chan *ProducerError
+	input, successes chan *ProducerMessage
+	inFight          sync.WaitGroup
+}
+
+func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
+	queue := OpenQueue(path, nil) // fix me, conf will be passed in
+	p, err := NewAsyncProducerWithQueue(queue)
+	if err != nil {
+		return nil, err
+	}
+	p.(*asyncProducer).ownQueue = true
+	return p, nil
+}
+
+func NewAsyncProducerWithQueue(queue Queue) (AsyncProducer, error) {
+	return nil, nil
+}
+
+func (p *asyncProducer) AsyncClose() {
+
+}
+
+func (p *asyncProducer) Close() error {
+	return nil
+}
+
+func (p *asyncProducer) Errors() <-chan *ProducerError {
+	return p.errors
+}
+
+func (p *asyncProducer) Input() chan<- *ProducerMessage {
+	return p.input
+}
+
+func (p *asyncProducer) Successes() <-chan *ProducerMessage {
+	return p.successes
 }
