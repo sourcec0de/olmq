@@ -153,3 +153,27 @@ func (tp *topicProducer) dispatch() {
 		close(handler)
 	}
 }
+
+type partitionProducer struct {
+	parent    *asyncProducer
+	topic     string
+	partition uint64
+	input     <-chan *ProducerMessage
+	out       chan<- *ProducerMessage
+}
+
+func (p *asyncProducer) newPartitionProducer(topic string, partition uint64) chan<- *ProducerMessage {
+	input := make(chan *ProducerMessage, 100) // fix me: change 100 to a conf
+	pp := &partitionProducer{
+		parent:    p,
+		topic:     topic,
+		partition: partition,
+		input:     input,
+	}
+	go withRecover(pp.dispatch)
+	return input
+}
+
+func (pp *partitionProducer) dispatch() {
+
+}
