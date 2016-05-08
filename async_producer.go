@@ -38,7 +38,7 @@ type AsyncProducer interface {
 }
 
 type asyncProducer struct {
-	queue    Queue // Queue type is an interface
+	client   Client
 	conf     *Config
 	ownQueue bool
 
@@ -48,8 +48,8 @@ type asyncProducer struct {
 }
 
 func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
-	queue := OpenQueue(path, nil) // fix me, conf will be passed in
-	p, err := NewAsyncProducerWithQueue(queue)
+	client := NewClient(path, conf)
+	p, err := NewAsyncProducerWithQueue(client)
 	if err != nil {
 		return nil, err
 	}
@@ -57,11 +57,11 @@ func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
 	return p, nil
 }
 
-func NewAsyncProducerWithQueue(queue Queue) (AsyncProducer, error) {
+func NewAsyncProducerWithQueue(client Client) (AsyncProducer, error) {
 	// TODO: Add queue.Closed
 	p := &asyncProducer{
-		queue:     queue,
-		conf:      nil, // fix me: to queue.Config
+		client:    client,
+		conf:      client.Config(),
 		errors:    make(chan *ProducerError),
 		input:     make(chan *ProducerMessage),
 		successes: make(chan *ProducerMessage),

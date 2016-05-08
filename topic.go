@@ -44,7 +44,7 @@ type lmdbTopic struct {
 	envPath             string
 	root                string
 	name                string
-	opt                 *TopicOpt
+	conf                *Config
 	currentPartitionID  uint64
 	currentPartitionDB  lmdb.DBI
 	ownerMeta           lmdb.DBI
@@ -57,21 +57,13 @@ type lmdbTopic struct {
 	consumerTag         string
 }
 
-func newLmdbTopic(env *lmdb.Env, name string, opt *TopicOpt) *lmdbTopic {
+func newLmdbTopic(env *lmdb.Env, name string, conf *Config) *lmdbTopic {
 	topic := &lmdbTopic{
 		env:  env,
 		name: name,
 	}
 	topic.envPath, _ = env.Path()
 	topic.root = strings.TrimRight(topic.envPath, envMetaName)
-	if opt != nil {
-		topic.opt = opt
-	} else {
-		topic.opt = &TopicOpt{
-			partitionSize:    defaultPartitionSize,
-			partitionsToKeep: defaultPartitionsToKeep,
-		}
-	}
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		if err := topic.initOwnerMeta(txn); err != nil {
 			return err
@@ -201,8 +193,8 @@ func (topic *lmdbTopic) persistedRotate() {
 		if err != nil {
 			return err
 		}
-		if count > topic.opt.partitionsToKeep {
-			expiredCount := count - topic.opt.partitionsToKeep
+		if count > topic.conf.Topic.partitionsToKeep {
+			expiredCount := count - topic.conf.Topic.partitionsToKeep
 			if err := topic.removeExpiredPartitions(expiredCount); err != nil {
 				return err
 			}
@@ -316,7 +308,7 @@ func (topic *lmdbTopic) openPersistedDB(path string) error {
 	if err != nil {
 		return err
 	}
-	if err := env.SetMapSize(topic.opt.partitionSize); err != nil {
+	if err := env.SetMapSize(topic.conf.Topic.partitionSize); err != nil {
 		return err
 	}
 	if err := env.SetMaxDBs(1); err != nil {
@@ -441,7 +433,7 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 	if err = env.SetMaxDBs(1); err != nil {
 		return err
 	}
-	if err = env.SetMapSize(topic.opt.partitionSize); err != nil {
+	if err = env.SetMapSize(topic.conf.Topic.partitionSize); err != nil {
 		return err
 	}
 	if err = env.Open(path, lmdb.Readonly|lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
