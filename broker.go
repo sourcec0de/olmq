@@ -30,6 +30,7 @@ type lmdbBroker struct {
 	env *lmdb.Env
 }
 
+// NewBroker returns a Broker with given path
 func NewBroker(path string) Broker {
 	brokerManager.Lock()
 	defer brokerManager.Unlock()
