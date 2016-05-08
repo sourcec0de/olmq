@@ -73,12 +73,14 @@ func (broker *lmdbBroker) Close() error {
 	return broker.env.Close()
 }
 
-func (broker *lmdbBroker) SetupTopic(name string, conf *Config) {
+func (broker *lmdbBroker) SetupTopics(names []string, conf *Config) {
 	broker.Lock()
 	defer broker.Unlock()
-	topic := broker.m[name]
-	if topic == nil {
-		topic = newLmdbTopic(broker.env, name, conf)
-		broker.m[name] = topic
+	for _, name := range names {
+		topic := broker.m[name]
+		if topic == nil {
+			topic = newLmdbTopic(broker.env, name, conf)
+			broker.m[name] = topic
+		}
 	}
 }
