@@ -65,3 +65,7 @@ func (broker *lmdbBroker) Open(conf *Config) error {
 	broker.env = env
 	return nil
 }
+
+func (broker *lmdbBroker) Close() error {
+	return broker.env.Close()
+}
