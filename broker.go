@@ -28,6 +28,8 @@ type lmdbBroker struct {
 	conf *Config
 
 	env *lmdb.Env
+	m   map[string]Topic
+	sync.Mutex
 }
 
 // NewBroker returns a Broker with given path
@@ -69,4 +71,14 @@ func (broker *lmdbBroker) Open(conf *Config) error {
 
 func (broker *lmdbBroker) Close() error {
 	return broker.env.Close()
+}
+
+func (broker *lmdbBroker) SetupTopic(name string, conf *Config) {
+	broker.Lock()
+	defer broker.Unlock()
+	topic := broker.m[name]
+	if topic == nil {
+		topic = newLmdbTopic(broker.env, name, conf)
+		broker.m[name] = topic
+	}
 }
