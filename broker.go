@@ -36,6 +36,9 @@ type lmdbBroker struct {
 func NewBroker(path string) Broker {
 	brokerManager.Lock()
 	defer brokerManager.Unlock()
+	if brokerManager.m == nil {
+		brokerManager.m = make(map[string]Broker)
+	}
 	broker := brokerManager.m[path]
 	if broker == nil {
 		broker = &lmdbBroker{
