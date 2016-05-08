@@ -28,3 +28,17 @@ type lmdbBroker struct {
 
 	env *lmdb.Env
 }
+
+func NewBroker(path string) Broker {
+	brokerManager.Lock()
+	defer brokerManager.Unlock()
+	broker := brokerManager.m[path]
+	if broker == nil {
+		broker = &lmdbBroker{
+			path: path,
+			conf: nil,
+		}
+		brokerManager.m[path] = broker
+	}
+	return broker
+}
