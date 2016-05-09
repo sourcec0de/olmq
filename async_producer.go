@@ -66,6 +66,7 @@ func NewAsyncProducerWithClient(client Client) (AsyncProducer, error) {
 		input:     make(chan *ProducerMessage),
 		successes: make(chan *ProducerMessage),
 	}
+
 	go withRecover(p.dispatcher)
 	return p, nil
 }
@@ -136,6 +137,7 @@ func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
 		handlers:    make(map[uint64]chan<- *ProducerMessage),
 		partitioner: nil, // TODO: call openPartitionForPersisted
 	}
+	p.client.RefleshTopicMeta(topic)
 	go withRecover(tp.dispatch)
 	return input
 }

@@ -20,6 +20,7 @@ var brokerManager struct {
 // All operations on this object are entirely concurrency-safe
 type Broker interface {
 	Open(conf *Config) error
+	RefleshTopicMeta(name string)
 	Close() error
 }
 
@@ -33,7 +34,7 @@ type lmdbBroker struct {
 }
 
 // NewBroker returns a Broker with given path
-func NewBroker(path string) Broker {
+func NewBroker(path string, conf *Config) Broker {
 	brokerManager.Lock()
 	defer brokerManager.Unlock()
 	if brokerManager.m == nil {
@@ -43,9 +44,14 @@ func NewBroker(path string) Broker {
 	if broker == nil {
 		broker = &lmdbBroker{
 			path: path,
-			conf: nil,
+			conf: conf,
+			m:    make(map[string]Topic),
 		}
 		brokerManager.m[path] = broker
+		err := broker.Open(conf)
+		if err != nil {
+			return nil
+		}
 	}
 	return broker
 }
@@ -76,14 +82,12 @@ func (broker *lmdbBroker) Close() error {
 	return broker.env.Close()
 }
 
-func (broker *lmdbBroker) SetupTopics(names []string, conf *Config) {
+func (broker *lmdbBroker) RefleshTopicMeta(name string) {
 	broker.Lock()
 	defer broker.Unlock()
-	for _, name := range names {
-		topic := broker.m[name]
-		if topic == nil {
-			topic = newLmdbTopic(broker.env, name, conf)
-			broker.m[name] = topic
-		}
+	topic := broker.m[name]
+	if topic == nil {
+		topic = newLmdbTopic(broker.env, name, broker.conf)
+		broker.m[name] = topic
 	}
 }

@@ -5,6 +5,7 @@ type Client interface {
 	// Config returns the Config struct of the client. This struct should not be
 	// altered after it has been created.
 	Config() *Config
+	RefleshTopicMeta(name string)
 }
 
 type client struct {
@@ -19,11 +20,15 @@ func NewClient(path string, conf *Config) Client {
 	}
 	client := &client{
 		conf:   conf,
-		broker: NewBroker(path),
+		broker: NewBroker(path, conf),
 	}
 	return client
 }
 
 func (client *client) Config() *Config {
 	return client.conf
+}
+
+func (client *client) RefleshTopicMeta(name string) {
+	client.broker.RefleshTopicMeta(name)
 }
