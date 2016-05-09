@@ -7,6 +7,7 @@ type Client interface {
 	Config() *Config
 	RefleshTopicMeta(name string)
 	WritablePartition(topic string) (uint64, error)
+	Write(msgs []Message, topic string)
 }
 
 type client struct {
@@ -40,4 +41,8 @@ func (client *client) RefleshTopicMeta(name string) {
 
 func (client *client) WritablePartition(topic string) (uint64, error) {
 	return client.broker.WritablePartition(topic)
+}
+
+func (client *client) Write(msgs []Message, topic string) {
+	client.broker.Write(msgs, topic)
 }

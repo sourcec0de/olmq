@@ -22,6 +22,7 @@ type Broker interface {
 	Open(conf *Config) error
 	RefleshTopicMeta(name string)
 	WritablePartition(topic string) (uint64, error)
+	Write(msgs []Message, topic string)
 	Close() error
 }
 
@@ -102,4 +103,16 @@ func (broker *lmdbBroker) WritablePartition(topic string) (uint64, error) {
 		broker.m[topic] = t
 	}
 	return t.OpenPartitionForPersisted()
+}
+
+func (broker *lmdbBroker) Write(msgs []Message, topic string) {
+	broker.Lock()
+	defer broker.Unlock()
+	t := broker.m[topic]
+	if t == nil {
+		t = newLmdbTopic(broker.env, topic, broker.conf)
+		broker.m[topic] = t
+		t.OpenPartitionForPersisted()
+	}
+	t.PersistedToPartition(msgs)
 }

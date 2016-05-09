@@ -116,18 +116,16 @@ type topicProducer struct {
 	topic  string
 	input  <-chan *ProducerMessage
 
-	handlers    map[uint64]chan<- *ProducerMessage
-	partitioner Partitioner
+	handlers map[uint64]chan<- *ProducerMessage
 }
 
 func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
 	input := make(chan *ProducerMessage, p.conf.ChannelBufferSize)
 	tp := &topicProducer{
-		parent:      p,
-		topic:       topic,
-		input:       input,
-		handlers:    make(map[uint64]chan<- *ProducerMessage),
-		partitioner: nil, // TODO: call openPartitionForPersisted
+		parent:   p,
+		topic:    topic,
+		input:    input,
+		handlers: make(map[uint64]chan<- *ProducerMessage),
 	}
 	p.client.RefleshTopicMeta(topic)
 	go withRecover(tp.dispatch)
@@ -135,44 +133,17 @@ func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
 }
 
 func (tp *topicProducer) dispatch() {
+	_, _ = tp.partitionMessage()
+	msgs := make([]Message, tp.parent.conf.ChannelBufferSize)
 	for msg := range tp.input {
-		tp.partitionMessage(msg)
-		handler := tp.handlers[msg.Partition]
-		if handler == nil {
-			handler = tp.parent.newPartitionProducer(msg.Topic, msg.Partition)
-			tp.handlers[msg.Partition] = handler
+		msgs = append(msgs, Message(msg.payload))
+		tp.parent.successes <- msg // for test only, will be delete
+		if len(msgs) >= 10 {
+			tp.parent.client.Write(msgs, tp.topic)
 		}
-		handler <- msg
-	}
-	for _, handler := range tp.handlers {
-		close(handler)
 	}
 }
 
-func (tp *topicProducer) partitionMessage(msg *ProducerMessage) {
-}
-
-type partitionProducer struct {
-	parent    *asyncProducer
-	topic     string
-	partition uint64
-	input     <-chan *ProducerMessage
-}
-
-func (p *asyncProducer) newPartitionProducer(topic string, partition uint64) chan<- *ProducerMessage {
-	input := make(chan *ProducerMessage, p.conf.ChannelBufferSize)
-	pp := &partitionProducer{
-		parent:    p,
-		topic:     topic,
-		partition: partition,
-		input:     input,
-	}
-	go withRecover(pp.dispatch)
-	return input
-}
-
-func (pp *partitionProducer) dispatch() {
-	for msg := range pp.input {
-		pp.parent.successes <- msg
-	}
+func (tp *topicProducer) partitionMessage() (uint64, error) {
+	return tp.parent.client.WritablePartition(tp.topic)
 }

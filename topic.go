@@ -61,6 +61,7 @@ func newLmdbTopic(env *lmdb.Env, name string, conf *Config) *lmdbTopic {
 	topic := &lmdbTopic{
 		env:  env,
 		name: name,
+		conf: conf,
 	}
 	topic.envPath, _ = env.Path()
 	topic.root = strings.TrimRight(topic.envPath, envMetaName)
