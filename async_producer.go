@@ -142,6 +142,7 @@ func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
 
 func (tp *topicProducer) dispatch() {
 	for msg := range tp.input {
+		tp.partitionMessage(msg)
 		handler := tp.handlers[msg.Partition]
 		if handler == nil {
 			handler = tp.parent.newPartitionProducer(msg.Topic, msg.Partition)
@@ -152,6 +153,10 @@ func (tp *topicProducer) dispatch() {
 	for _, handler := range tp.handlers {
 		close(handler)
 	}
+}
+
+func (tp *topicProducer) partitionMessage(msg *ProducerMessage) {
+
 }
 
 type partitionProducer struct {

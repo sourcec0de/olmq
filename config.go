@@ -7,7 +7,6 @@ type Config struct {
 	Topic     struct {
 		maxNum           int
 		mapSize          int64
-		name             []string
 		partitionSize    int64
 		partitionsToKeep uint64
 	}
