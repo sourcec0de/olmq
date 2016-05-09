@@ -16,6 +16,7 @@ func TestNewAsyncProducer(t *testing.T) {
 	conf.Topic.name[1] = "Topic1"
 	conf.Topic.partitionSize = 1024 * 1024 * 1024
 	conf.Topic.partitionsToKeep = 8
+	conf.ChannelBufferSize = 256
 
 	root, _ := os.Getwd()
 	path := fmt.Sprintf("%s/test-newAsyncProducer", root)

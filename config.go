@@ -11,6 +11,7 @@ type Config struct {
 		partitionSize    int64
 		partitionsToKeep uint64
 	}
+	ChannelBufferSize int
 }
 
 // NewConfig returns a new configuration instance with sane defaults.

@@ -128,7 +128,7 @@ type topicProducer struct {
 }
 
 func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
-	input := make(chan *ProducerMessage, 256) // fix me: change 100 to one of Config
+	input := make(chan *ProducerMessage, p.conf.ChannelBufferSize)
 	tp := &topicProducer{
 		parent:      p,
 		topic:       topic,
@@ -163,7 +163,7 @@ type partitionProducer struct {
 }
 
 func (p *asyncProducer) newPartitionProducer(topic string, partition uint64) chan<- *ProducerMessage {
-	input := make(chan *ProducerMessage, 256) // fix me: change 100 to a conf
+	input := make(chan *ProducerMessage, p.conf.ChannelBufferSize)
 	pp := &partitionProducer{
 		parent:    p,
 		topic:     topic,
