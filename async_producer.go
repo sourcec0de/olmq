@@ -69,7 +69,6 @@ func NewAsyncProducerFromClient(client Client) (AsyncProducer, error) {
 		input:     make(chan *ProducerMessage),
 		successes: make(chan *ProducerMessage),
 	}
-
 	go withRecover(p.dispatcher)
 	return p, nil
 }
@@ -151,7 +150,6 @@ func (tp *topicProducer) dispatch() {
 }
 
 func (tp *topicProducer) partitionMessage(msg *ProducerMessage) {
-
 }
 
 type partitionProducer struct {

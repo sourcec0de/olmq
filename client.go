@@ -6,6 +6,7 @@ type Client interface {
 	// altered after it has been created.
 	Config() *Config
 	RefleshTopicMeta(name string)
+	WritablePartition(topic string) (uint64, error)
 }
 
 type client struct {
@@ -35,4 +36,8 @@ func (client *client) Config() *Config {
 
 func (client *client) RefleshTopicMeta(name string) {
 	client.broker.RefleshTopicMeta(name)
+}
+
+func (client *client) WritablePartition(topic string) (uint64, error) {
+	return client.broker.WritablePartition(topic)
 }

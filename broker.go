@@ -21,6 +21,7 @@ var brokerManager struct {
 type Broker interface {
 	Open(conf *Config) error
 	RefleshTopicMeta(name string)
+	WritablePartition(topic string) (uint64, error)
 	Close() error
 }
 
@@ -90,4 +91,15 @@ func (broker *lmdbBroker) RefleshTopicMeta(name string) {
 		topic = newLmdbTopic(broker.env, name, broker.conf)
 		broker.m[name] = topic
 	}
+}
+
+func (broker *lmdbBroker) WritablePartition(topic string) (uint64, error) {
+	broker.Lock()
+	defer broker.Unlock()
+	t := broker.m[topic]
+	if t == nil {
+		t = newLmdbTopic(broker.env, topic, broker.conf)
+		broker.m[topic] = t
+	}
+	return t.OpenPartitionForPersisted()
 }

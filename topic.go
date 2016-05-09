@@ -23,7 +23,7 @@ var (
 )
 
 type Topic interface {
-	OpenPartitionForPersisted()
+	OpenPartitionForPersisted() (uint64, error)
 	PersistedToPartition(msg []Message)
 	ConsumingFromPartition(out []Message)
 	OpenPartitionForConsuming(consumerTag string)
@@ -165,13 +165,16 @@ func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) erro
 	return err
 }
 
-func (topic *lmdbTopic) OpenPartitionForPersisted() {
-	err := topic.env.Update(func(txn *lmdb.Txn) error {
-		return topic.openPartitionForPersisted(txn, false)
+func (topic *lmdbTopic) OpenPartitionForPersisted() (uint64, error) {
+	partitionID := uint64(0)
+	err := topic.env.Update(func(txn *lmdb.Txn) (err error) {
+		partitionID, err = topic.openPartitionForPersisted(txn, false)
+		return
 	})
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
+	return partitionID, nil
 }
 
 func (topic *lmdbTopic) OpenPartitionForConsuming(consumerTag string) {
@@ -199,7 +202,8 @@ func (topic *lmdbTopic) persistedRotate() {
 				return err
 			}
 		}
-		return topic.openPartitionForPersisted(txn, true)
+		_, err = topic.openPartitionForPersisted(txn, true)
+		return err
 	})
 	if err != nil {
 		panic(err)
@@ -280,21 +284,24 @@ func (topic *lmdbTopic) persistedOffset(txn *lmdb.Txn) (uint64, error) {
 	return bytesToUInt64(offsetBuf), err
 }
 
-func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) error {
+func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) (uint64, error) {
 	partitionMeta, err := topic.latestPartitionMeta(txn)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if rotating && topic.currentPartitionID == partitionMeta.id {
 		partitionMeta.id++
 		partitionMeta.offset++
 		if err := topic.updatePartitionMeta(txn, partitionMeta); err != nil {
-			return err
+			return 0, err
 		}
 	}
 	topic.currentPartitionID = partitionMeta.id
 	path := topic.partitionPath(topic.currentPartitionID)
-	return topic.openPersistedDB(path)
+	if err = topic.openPersistedDB(path); err != nil {
+		return 0, err
+	}
+	return topic.currentPartitionID, nil
 }
 
 func (topic *lmdbTopic) updatePartitionMeta(txn *lmdb.Txn, partitionMeta *PartitionMeta) error {
