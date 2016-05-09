@@ -49,7 +49,7 @@ type asyncProducer struct {
 
 func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
 	client := NewClient(path, conf)
-	p, err := NewAsyncProducerWithQueue(client)
+	p, err := NewAsyncProducerWithClient(client)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
 	return p, nil
 }
 
-func NewAsyncProducerWithQueue(client Client) (AsyncProducer, error) {
+func NewAsyncProducerWithClient(client Client) (AsyncProducer, error) {
 	// TODO: Add queue.Closed
 	p := &asyncProducer{
 		client:    client,
