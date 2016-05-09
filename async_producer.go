@@ -1,7 +1,5 @@
 package lmq
 
-import "sync"
-
 // AsyncProducer publishes messages using a non-blocking API. You must read from the
 // Errors() channel or the producer will deadlock. You must call Close() or AsyncClose()
 // on a producer to avoid leaks: it will not be garbage-collected automatically when it
@@ -10,7 +8,8 @@ type AsyncProducer interface {
 
 	// AsyncClose triggers a shutdown of the producer, flushing any messages it may
 	// have buffered. The shutdown has completed when both the Errors and Successes
-	// channels have been closed. When calling AsyncClose, you *must* continue to // read from those channels in order to drain the results of any messages in
+	// channels have been closed. When calling AsyncClose, you *must* continue to
+	// read from those channels in order to drain the results of any messages in
 	// flight.
 	AsyncClose()
 
@@ -44,7 +43,6 @@ type asyncProducer struct {
 
 	errors           chan *ProducerError
 	input, successes chan *ProducerMessage
-	inFight          sync.WaitGroup
 }
 
 func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
@@ -61,7 +59,6 @@ func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
 }
 
 func NewAsyncProducerWithClient(client Client) (AsyncProducer, error) {
-	// TODO: Add queue.Closed
 	p := &asyncProducer{
 		client:    client,
 		conf:      client.Config(),
@@ -76,20 +73,10 @@ func NewAsyncProducerWithClient(client Client) (AsyncProducer, error) {
 
 func (p *asyncProducer) dispatcher() {
 	handlers := make(map[string]chan<- *ProducerMessage)
-	//shuttingDown := false
-
 	for msg := range p.input {
 		if msg == nil {
-			// TODO: add logger, ignored nil msg
 			continue
 		}
-		/* TODO: add add shutDown handle
-		if msg.flags&shutDown != 0 {
-			shuttingDown = true
-			p.inFight.Done()
-			continue
-		}
-		*/
 		handler := handlers[msg.Topic]
 		if handler == nil {
 			handler = p.newTopicProducer(msg.Topic)
