@@ -7,6 +7,7 @@ type ProducerMessage struct {
 	Topic     string
 	flags     flagSet
 	Partition uint64
+	payload   string
 }
 
 // ProducerError is the type of error generated when the producer fails to deliver a message.

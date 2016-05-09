@@ -128,7 +128,7 @@ type topicProducer struct {
 }
 
 func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
-	input := make(chan *ProducerMessage, 100) // fix me: change 100 to one of Config
+	input := make(chan *ProducerMessage, 256) // fix me: change 100 to one of Config
 	tp := &topicProducer{
 		parent:      p,
 		topic:       topic,
@@ -144,7 +144,7 @@ func (tp *topicProducer) dispatch() {
 	for msg := range tp.input {
 		handler := tp.handlers[msg.Partition]
 		if handler == nil {
-			handler = nil // fix me: tp.parent.newPartitionProducer(msg.Topic, msg.Parititon)
+			handler = tp.parent.newPartitionProducer(msg.Topic, msg.Partition)
 			tp.handlers[msg.Partition] = handler
 		}
 		handler <- msg
@@ -163,7 +163,7 @@ type partitionProducer struct {
 }
 
 func (p *asyncProducer) newPartitionProducer(topic string, partition uint64) chan<- *ProducerMessage {
-	input := make(chan *ProducerMessage, 100) // fix me: change 100 to a conf
+	input := make(chan *ProducerMessage, 256) // fix me: change 100 to a conf
 	pp := &partitionProducer{
 		parent:    p,
 		topic:     topic,
@@ -175,5 +175,7 @@ func (p *asyncProducer) newPartitionProducer(topic string, partition uint64) cha
 }
 
 func (pp *partitionProducer) dispatch() {
-
+	for msg := range pp.input {
+		pp.parent.successes <- msg
+	}
 }
