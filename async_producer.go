@@ -45,12 +45,13 @@ type asyncProducer struct {
 	input, successes chan *ProducerMessage
 }
 
+// NewAsyncProducer creates a new AsyncProducer using the given mq path and configuration.
 func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
 	client, err := NewClient(path, conf)
 	if err != nil {
 		return nil, err
 	}
-	p, err := NewAsyncProducerWithClient(client)
+	p, err := NewAsyncProducerFromClient(client)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,9 @@ func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
 	return p, nil
 }
 
-func NewAsyncProducerWithClient(client Client) (AsyncProducer, error) {
+// NewAsyncProducerFromClient creates a new Producer using the given client. It is still
+// necessary to call Close() on the underlying client when shutting down this producer.
+func NewAsyncProducerFromClient(client Client) (AsyncProducer, error) {
 	p := &asyncProducer{
 		client:    client,
 		conf:      client.Config(),
@@ -156,7 +159,6 @@ type partitionProducer struct {
 	topic     string
 	partition uint64
 	input     <-chan *ProducerMessage
-	out       chan<- *ProducerMessage
 }
 
 func (p *asyncProducer) newPartitionProducer(topic string, partition uint64) chan<- *ProducerMessage {
