@@ -19,9 +19,10 @@ func TestNewAsyncProducer(t *testing.T) {
 
 	root, _ := os.Getwd()
 	path := fmt.Sprintf("%s/test-newAsyncProducer", root)
-	os.Mkdir(path, 0755)
-	defer os.RemoveAll(path)
-
+	_ = os.Mkdir(path, 0755)
+	defer func() {
+		_ = os.RemoveAll(path)
+	}()
 	producer, err := NewAsyncProducer(path, conf)
 	if producer == nil || err != nil {
 		t.Fatal(err)
@@ -33,12 +34,19 @@ func TestNewAsyncProducer(t *testing.T) {
 			payload: "hello",
 		}
 	}
-	for i := 0; i < 10; i++ {
-		select {
-		case msg := <-producer.Successes():
-			if !strings.EqualFold(msg.payload, "hello") {
-				t.Error(msg)
-			}
+
+	recvd := 0
+	results := producer.Successes()
+	for recvMsg := range results {
+		if !strings.EqualFold(recvMsg.payload, "hello") {
+			t.Error(recvMsg.payload)
 		}
+		recvd++
+		if recvd == 10 {
+			break
+		}
+	}
+	if recvd != 10 {
+		t.Error("Data lost")
 	}
 }
