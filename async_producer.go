@@ -48,7 +48,10 @@ type asyncProducer struct {
 }
 
 func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
-	client := NewClient(path, conf)
+	client, err := NewClient(path, conf)
+	if err != nil {
+		return nil, err
+	}
 	p, err := NewAsyncProducerWithClient(client)
 	if err != nil {
 		return nil, err

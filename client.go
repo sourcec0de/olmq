@@ -14,15 +14,19 @@ type client struct {
 }
 
 // NewClient returns a Client with given path and Config
-func NewClient(path string, conf *Config) Client {
+func NewClient(path string, conf *Config) (Client, error) {
 	if conf == nil {
 		conf = NewConfig()
 	}
+	broker, err := NewBroker(path, conf)
+	if err != nil {
+		return nil, err
+	}
 	client := &client{
 		conf:   conf,
-		broker: NewBroker(path, conf),
+		broker: broker,
 	}
-	return client
+	return client, nil
 }
 
 func (client *client) Config() *Config {

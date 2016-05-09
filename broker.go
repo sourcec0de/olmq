@@ -34,7 +34,7 @@ type lmdbBroker struct {
 }
 
 // NewBroker returns a Broker with given path
-func NewBroker(path string, conf *Config) Broker {
+func NewBroker(path string, conf *Config) (Broker, error) {
 	brokerManager.Lock()
 	defer brokerManager.Unlock()
 	if brokerManager.m == nil {
@@ -50,10 +50,10 @@ func NewBroker(path string, conf *Config) Broker {
 		brokerManager.m[path] = broker
 		err := broker.Open(conf)
 		if err != nil {
-			return nil
+			return nil, err
 		}
 	}
-	return broker
+	return broker, nil
 }
 
 func (broker *lmdbBroker) Open(conf *Config) error {
