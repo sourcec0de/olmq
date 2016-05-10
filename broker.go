@@ -23,7 +23,7 @@ type Broker interface {
 	RefleshTopicMeta(name string)
 	WritablePartition(topic string) (uint64, error)
 	WriteMessages(msgs []Message, topic string)
-	ReadMessages(topic string) <-chan Message
+	ReadMessages(consumerTag string, topic string) <-chan Message
 	Close() error
 }
 
@@ -113,19 +113,19 @@ func (broker *lmdbBroker) WriteMessages(msgs []Message, topic string) {
 	if t == nil {
 		t = newLmdbTopic(broker.env, topic, broker.conf)
 		broker.m[topic] = t
-		t.OpenPartitionForPersisted()
 	}
+	t.OpenPartitionForPersisted()
 	t.PersistedToPartition(msgs)
 }
 
-func (broker *lmdbBroker) ReadMessages(topic string) <-chan Message {
+func (broker *lmdbBroker) ReadMessages(consumerTag string, topic string) <-chan Message {
 	broker.Lock()
 	defer broker.Unlock()
 	t := broker.m[topic]
 	if t == nil {
 		t = newLmdbTopic(broker.env, topic, broker.conf)
 		broker.m[topic] = t
-		t.OpenPartitionForPersisted()
 	}
+	t.OpenPartitionForConsuming(consumerTag)
 	return t.ConsumingFromPartition()
 }

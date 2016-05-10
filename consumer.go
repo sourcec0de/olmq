@@ -3,6 +3,7 @@ package lmq
 // Consumer process messages from mq. You MUST call Close() on a consumer to avoid leaks,
 // it will not be garbage-collected automatically when it passes out of scope.
 type Consumer interface {
+	ReadMessages(consumerTag string, topic string) <-chan Message
 	Close() error
 }
 
@@ -40,7 +41,7 @@ func (c *consumer) Close() error {
 	return nil
 }
 
-func (c *consumer) ReadMessages(topic string) <-chan Message {
+func (c *consumer) ReadMessages(consumerTag string, topic string) <-chan Message {
 	c.client.RefleshTopicMeta(topic)
-	return c.client.ReadMessages(topic)
+	return c.client.ReadMessages(consumerTag, topic)
 }
