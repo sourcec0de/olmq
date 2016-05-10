@@ -139,7 +139,7 @@ func (tp *topicProducer) dispatch() {
 		msgs = append(msgs, Message(msg.payload))
 		tp.parent.successes <- msg // for test only, will be delete
 		if len(msgs) >= 10 {
-			tp.parent.client.Write(msgs, tp.topic)
+			tp.parent.client.WriteMessages(msgs, tp.topic)
 		}
 	}
 }
