@@ -39,3 +39,8 @@ func NewConsumerFromClient(client Client) (Consumer, error) {
 func (c *consumer) Close() error {
 	return nil
 }
+
+func (c *consumer) ReadMessages(topic string) <-chan Message {
+	c.client.RefleshTopicMeta(topic)
+	return c.client.ReadMessages(topic)
+}

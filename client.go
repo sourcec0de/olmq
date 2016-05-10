@@ -8,6 +8,7 @@ type Client interface {
 	RefleshTopicMeta(name string)
 	WritablePartition(topic string) (uint64, error)
 	WriteMessages(msgs []Message, topic string)
+	ReadMessages(topic string) <-chan Message
 }
 
 type client struct {
@@ -47,6 +48,6 @@ func (client *client) WriteMessages(msgs []Message, topic string) {
 	client.broker.WriteMessages(msgs, topic)
 }
 
-func (client *client) ReadMessagess(topic string) <-chan []Message {
-	return nil
+func (client *client) ReadMessages(topic string) <-chan Message {
+	return client.broker.ReadMessages(topic)
 }

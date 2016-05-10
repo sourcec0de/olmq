@@ -25,18 +25,13 @@ var (
 type Topic interface {
 	OpenPartitionForPersisted() (uint64, error)
 	PersistedToPartition(msg []Message)
-	ConsumingFromPartition(out []Message)
+	ConsumingFromPartition() <-chan Message
 	OpenPartitionForConsuming(consumerTag string)
 }
 
 type PartitionMeta struct {
 	id     uint64
 	offset uint64
-}
-
-type TopicOpt struct {
-	partitionSize    int64
-	partitionsToKeep uint64
 }
 
 type lmdbTopic struct {
@@ -360,7 +355,13 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 	return partitionMeta, nil
 }
 
-func (topic *lmdbTopic) ConsumingFromPartition(out []Message) {
+func (topic *lmdbTopic) ConsumingFromPartition() <-chan Message {
+	buf := make(chan Message, topic.conf.ChannelBufferSize)
+	topic.consumingFromPartition(buf)
+	return buf
+}
+
+func (topic *lmdbTopic) consumingFromPartition(out chan<- Message) {
 	shouldRotate := false
 	{
 		err := topic.env.Update(func(txn *lmdb.Txn) error {
@@ -380,7 +381,7 @@ func (topic *lmdbTopic) ConsumingFromPartition(out []Message) {
 				i := 0
 				offset := bytesToUInt64(offsetBuf)
 				for cnt := cap(out); err == nil && cnt > 0; cnt-- {
-					out[i] = payload
+					out <- payload
 					i++
 					offset = bytesToUInt64(offsetBuf)
 					offsetBuf, payload, err = topic.consumingCursor.Get(nil, nil, lmdb.Next)
@@ -413,7 +414,7 @@ func (topic *lmdbTopic) ConsumingFromPartition(out []Message) {
 	}
 	if shouldRotate {
 		topic.consumingRotate()
-		topic.ConsumingFromPartition(out)
+		topic.consumingFromPartition(out)
 	}
 }
 
