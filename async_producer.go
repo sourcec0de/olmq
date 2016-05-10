@@ -134,12 +134,13 @@ func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
 
 func (tp *topicProducer) dispatch() {
 	_, _ = tp.partitionMessage()
-	msgs := make([]Message, tp.parent.conf.ChannelBufferSize)
+	var msgs []Message
 	for msg := range tp.input {
 		msgs = append(msgs, Message(msg.payload))
 		tp.parent.successes <- msg // for test only, will be delete
-		if len(msgs) >= 10 {
+		if len(msgs) >= 9 {
 			tp.parent.client.WriteMessages(msgs, tp.topic)
+			msgs = msgs[:0]
 		}
 	}
 }

@@ -122,7 +122,6 @@ func (topic *lmdbTopic) PersistedToPartition(msgs []Message) {
 		}
 		offset, err = topic.persistedToPartitionDB(txn, offset, msgs)
 		if err == nil {
-			log.Printf("persisted offset %d", offset)
 			return topic.updatePersistedOffset(txn, offset)
 		}
 		return err
@@ -377,15 +376,11 @@ func (topic *lmdbTopic) consumingFromPartition(out chan<- Message) {
 			if pOffset-cOffset == 1 || pOffset == 0 {
 				return nil
 			}
-			// debug
-			log.Printf("pOffset: %d", pOffset)
-			log.Printf("cOffset: %d", cOffset)
 			offsetBuf, payload, err := topic.consumingCursor.Get(uInt64ToBytes(cOffset), nil, lmdb.SetRange)
 			if err == nil {
 				i := 0
 				offset := bytesToUInt64(offsetBuf)
 				for cnt := cap(out); err == nil && cnt > 0; cnt-- {
-					log.Printf("In %s\n", payload)
 					out <- payload
 					i++
 					offset = bytesToUInt64(offsetBuf)

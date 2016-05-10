@@ -55,18 +55,18 @@ func TestNewConsumer(t *testing.T) {
 	}
 
 	reads := consumer.ReadMessages("Consumer1", "Topic1")
-	fmt.Printf("After call ReadMessages")
+	recvd = 0
 	for recvMsg := range reads {
 		fmt.Printf("%s\n", recvMsg)
 		if !bytes.Equal(recvMsg, []byte("hello")) {
 			t.Error(recvMsg)
 		}
 		recvd++
-		if recvd == 10 {
+		if recvd == 9 {
 			break
 		}
 	}
-	if recvd != 10 {
+	if recvd != 9 {
 		t.Error("Data lost")
 	}
 }
