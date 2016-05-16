@@ -99,20 +99,6 @@ func TestNewConsumerWithMultiThread(t *testing.T) {
 	quit := make(chan bool)
 	go func() {
 		recvd := 0
-		results := producer.Successes()
-		for recvMsg := range results {
-			if !strings.EqualFold(recvMsg.payload, "hello") {
-				t.Error(recvMsg.payload)
-			}
-			recvd++
-			if recvd == 10 {
-				break
-			}
-		}
-		if recvd != 10 {
-			t.Error("Data lost")
-		}
-
 		consumer, err := NewConsumer(path, conf)
 		if consumer == nil || err != nil {
 			t.Fatal(err)
@@ -135,20 +121,6 @@ func TestNewConsumerWithMultiThread(t *testing.T) {
 		quit <- true
 	}()
 	recvd := 0
-	results := producer.Successes()
-	for recvMsg := range results {
-		if !strings.EqualFold(recvMsg.payload, "hello") {
-			t.Error(recvMsg.payload)
-		}
-		recvd++
-		if recvd == 10 {
-			break
-		}
-	}
-	if recvd != 10 {
-		t.Error("Data lost")
-	}
-
 	consumer, err := NewConsumer(path, conf)
 	if consumer == nil || err != nil {
 		t.Fatal(err)
