@@ -168,6 +168,7 @@ func TestNewConsumerWithMultiThread(t *testing.T) {
 	if recvd != 9 {
 		t.Error("Data lost")
 	}
+	<-quit
 }
 
 /*
