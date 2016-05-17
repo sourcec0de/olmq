@@ -1,5 +1,7 @@
 package lmq
 
+import "log"
+
 // AsyncProducer publishes messages using a non-blocking API. You must read from the
 // Errors() channel or the producer will deadlock. You must call Close() or AsyncClose()
 // on a producer to avoid leaks: it will not be garbage-collected automatically when it
@@ -134,14 +136,19 @@ func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
 
 func (tp *topicProducer) dispatch() {
 	_, _ = tp.partitionMessage()
+	i := 0
 	var msgs []Message
 	for msg := range tp.input {
+		log.Println("Read from tp.input: ", i)
+		i++
 		msgs = append(msgs, Message(msg.payload))
-		tp.parent.successes <- msg // for test only, will be delete
+		// tp.parent.successes <- msg // for test only, will be delete
 		if len(msgs) >= 9 {
 			tp.parent.client.WriteMessages(msgs, tp.topic)
 			msgs = msgs[:0]
 		}
+		log.Println("Never get here")
+
 	}
 }
 

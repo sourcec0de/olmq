@@ -132,6 +132,7 @@ func (topic *lmdbTopic) PersistedToPartition(msgs []Message) {
 	if err, ok := err.(*lmdb.OpError); ok {
 		if err.Errno == lmdb.MapFull {
 			isFull = true
+			log.Println("isFull: ", isFull)
 		} else {
 			panic(err.Errno)
 		}
@@ -176,6 +177,7 @@ func (topic *lmdbTopic) OpenPartitionForPersisted() (uint64, error) {
 func (topic *lmdbTopic) OpenPartitionForConsuming(consumerTag string) {
 	topic.consumerTag = consumerTag
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
+		log.Println("Debug in OpenPartitionForConsuming, consumerTag: ", consumerTag)
 		return topic.openPartitionForConsuming(txn, consumerTag)
 	})
 	if err != nil {
@@ -356,16 +358,20 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 }
 
 func (topic *lmdbTopic) ConsumingFromPartition() <-chan Message {
+	log.Println("Debug in ConsumingFromPartition")
 	buf := make(chan Message, topic.conf.ChannelBufferSize)
 	topic.consumingFromPartition(buf)
 	return buf
 }
 
 func (topic *lmdbTopic) consumingFromPartition(out chan<- Message) {
+	log.Println("Debug in consumingFromPartition")
 	shouldRotate := false
 	{
 		err := topic.env.Update(func(txn *lmdb.Txn) error {
+			log.Println("Debug in consumingFromPartition env.Update")
 			pOffset, err := topic.persistedOffset(txn)
+			log.Println("Debug in consumingFromPartition pOffset", pOffset)
 			if err != nil {
 				return err
 			}
@@ -376,6 +382,8 @@ func (topic *lmdbTopic) consumingFromPartition(out chan<- Message) {
 			if pOffset-cOffset == 1 || pOffset == 0 {
 				return nil
 			}
+			log.Println("pOffset: ", pOffset)
+			log.Println("cOffset: ", cOffset)
 			offsetBuf, payload, err := topic.consumingCursor.Get(uInt64ToBytes(cOffset), nil, lmdb.SetRange)
 			if err == nil {
 				i := 0
@@ -424,12 +432,14 @@ func (topic *lmdbTopic) updateConsumingOffset(txn *lmdb.Txn, consumerTag string,
 }
 
 func (topic *lmdbTopic) openPartitionForConsuming(txn *lmdb.Txn, consumerTag string) error {
+	log.Println("Debug in openPartitionForConsuming, consumerTag: ", consumerTag)
 	currentPartitionID, err := topic.consumingPartitionID(txn, consumerTag, topic.currentPartitionID)
 	if err != nil {
 		return err
 	}
 	topic.currentPartitionID = currentPartitionID
 	path := topic.partitionPath(topic.currentPartitionID)
+	log.Println("Debug in openPartitionForConsuming, path: ", path)
 	return topic.openConsumingDB(path)
 }
 
@@ -474,6 +484,7 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 
 func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, searchFrom uint64) (uint64, error) {
 	offset, err := topic.consumingOffset(txn, consumerTag)
+	log.Println("Debug in consumingPartitionID, offset: ", offset)
 	if err != nil {
 		return 0, err
 	}
@@ -481,11 +492,14 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 	if err != nil {
 		return 0, err
 	}
+	log.Println("Debug in consumingPartitionID, searchFrom: ", searchFrom)
 	idBuf, eoffsetBuf, err := cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.SetRange)
 	if err != nil {
 		return 0, err
 	}
+	log.Println("Debug in consumingPartitionID,  after get searchFrom: ", searchFrom)
 	eoffset := bytesToUInt64(eoffsetBuf)
+	log.Println("Debug in consumingPartitionID,  eoffset: ", eoffset)
 	for offset > eoffset {
 		idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
 		if err != nil {
