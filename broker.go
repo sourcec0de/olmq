@@ -113,8 +113,8 @@ func (broker *lmdbBroker) WriteMessages(msgs []Message, topic string) {
 	if t == nil {
 		t = newLmdbTopic(broker.env, topic, broker.conf)
 		broker.m[topic] = t
+		t.OpenPartitionForPersisted()
 	}
-	t.OpenPartitionForPersisted()
 	t.PersistedToPartition(msgs)
 }
 
