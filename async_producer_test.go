@@ -10,16 +10,14 @@ func TestNewAsyncProducer(t *testing.T) {
 	conf := &Config{}
 	conf.Topic.maxNum = 256
 	conf.Topic.mapSize = 256 * 1024 * 1024
-	conf.Topic.partitionSize = 1024
+	conf.Topic.partitionSize = 4096 * 4
 	conf.Topic.partitionsToKeep = 8
 	conf.ChannelBufferSize = 256
 
 	root, _ := os.Getwd()
 	path := fmt.Sprintf("%s/test-newAsyncProducer", root)
 	_ = os.Mkdir(path, 0755)
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+
 	producer, err := NewAsyncProducer(path, conf)
 	if producer == nil || err != nil {
 		t.Fatal(err)
@@ -36,16 +34,13 @@ func TestNewAsyncProducerWithMultiThread(t *testing.T) {
 	conf := &Config{}
 	conf.Topic.maxNum = 256
 	conf.Topic.mapSize = 256 * 1024 * 1024
-	conf.Topic.partitionSize = 1024
+	conf.Topic.partitionSize = 4096 * 4
 	conf.Topic.partitionsToKeep = 8
 	conf.ChannelBufferSize = 256
 
 	root, _ := os.Getwd()
 	path := fmt.Sprintf("%s/test-newMultiAsyncProducer", root)
 	_ = os.Mkdir(path, 0755)
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
 
 	quit := make(chan bool)
 	go func() {
@@ -75,20 +70,19 @@ func TestNewAsyncProducerWithMultiThread(t *testing.T) {
 	<-quit
 }
 
+/*
 func BenchmarkNewAsyncProducer(b *testing.B) {
 	conf := &Config{}
 	conf.Topic.maxNum = 256
 	conf.Topic.mapSize = 256 * 1024 * 1024
-	conf.Topic.partitionSize = 1024
+	conf.Topic.partitionSize = 4096 * 4
 	conf.Topic.partitionsToKeep = 8
 	conf.ChannelBufferSize = 256
 
 	root, _ := os.Getwd()
 	path := fmt.Sprintf("%s/test-newBenchAsyncProducer", root)
 	_ = os.Mkdir(path, 0755)
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+
 	producer, err := NewAsyncProducer(path, conf)
 	if producer == nil || err != nil {
 		b.Fatal(err)
@@ -105,16 +99,13 @@ func BenchmarkNewAsyncProducerWithMultiThread(b *testing.B) {
 	conf := &Config{}
 	conf.Topic.maxNum = 256
 	conf.Topic.mapSize = 256 * 1024 * 1024
-	conf.Topic.partitionSize = 1024
+	conf.Topic.partitionSize = 4096 * 4
 	conf.Topic.partitionsToKeep = 8
 	conf.ChannelBufferSize = 256
 
 	root, _ := os.Getwd()
 	path := fmt.Sprintf("%s/test-newBenchMultiAsyncProducer", root)
 	_ = os.Mkdir(path, 0755)
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
 
 	quit := make(chan bool)
 	go func() {
@@ -145,3 +136,4 @@ func BenchmarkNewAsyncProducerWithMultiThread(b *testing.B) {
 		}
 	}
 }
+*/

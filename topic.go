@@ -120,7 +120,7 @@ func (topic *lmdbTopic) PersistedToPartition(msgs []Message) {
 		if err != nil {
 			return err
 		}
-		offset, err = topic.persistedToPartitionDB(txn, offset, msgs)
+		offset, err = topic.persistedToPartitionDB(offset, msgs)
 		if err == nil {
 			return topic.updatePersistedOffset(txn, offset)
 		}
@@ -142,7 +142,7 @@ func (topic *lmdbTopic) PersistedToPartition(msgs []Message) {
 	}
 }
 
-func (topic *lmdbTopic) persistedToPartitionDB(txn *lmdb.Txn, offset uint64, msgs []Message) (uint64, error) {
+func (topic *lmdbTopic) persistedToPartitionDB(offset uint64, msgs []Message) (uint64, error) {
 	err := topic.persistedEnv.Update(func(txn *lmdb.Txn) error {
 		for _, v := range msgs {
 			offset++
@@ -308,13 +308,13 @@ func (topic *lmdbTopic) openPersistedDB(path string) error {
 	if err != nil {
 		return err
 	}
-	if err := env.SetMapSize(topic.conf.Topic.partitionSize); err != nil {
+	if err = env.SetMapSize(topic.conf.Topic.partitionSize); err != nil {
 		return err
 	}
-	if err := env.SetMaxDBs(1); err != nil {
+	if err = env.SetMaxDBs(1); err != nil {
 		return err
 	}
-	if err := env.Open(path, lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
+	if err = env.Open(path, lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
 		return err
 	}
 	if _, err = env.ReaderCheck(); err != nil {

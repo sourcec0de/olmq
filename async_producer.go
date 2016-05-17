@@ -109,7 +109,7 @@ func (p *asyncProducer) newTopicProducer(topic string) chan<- *ProducerMessage {
 }
 
 func (tp *topicProducer) dispatch() {
-	_, _ = tp.partitionMessage()
+	_, _ = tp.partitionMessage() // fix me, should auto fix env create, not show this to user
 	i := 0
 	var msgs []Message
 	for msg := range tp.input {
