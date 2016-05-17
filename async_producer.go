@@ -28,9 +28,7 @@ type asyncProducer struct {
 	client   Client
 	conf     *Config
 	ownQueue bool
-
-	errors           chan *ProducerError
-	input, successes chan *ProducerMessage
+	input    chan *ProducerMessage
 }
 
 // NewAsyncProducer creates a new AsyncProducer using the given mq path and configuration.
@@ -51,11 +49,9 @@ func NewAsyncProducer(path string, conf *Config) (AsyncProducer, error) {
 // necessary to call Close() on the underlying client when shutting down this producer.
 func NewAsyncProducerFromClient(client Client) (AsyncProducer, error) {
 	p := &asyncProducer{
-		client:    client,
-		conf:      client.Config(),
-		errors:    make(chan *ProducerError),
-		input:     make(chan *ProducerMessage),
-		successes: make(chan *ProducerMessage),
+		client: client,
+		conf:   client.Config(),
+		input:  make(chan *ProducerMessage),
 	}
 	go withRecover(p.dispatcher)
 	return p, nil
