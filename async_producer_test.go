@@ -218,7 +218,7 @@ func BenchmarkNewAsyncProducerWithMultiThread(b *testing.B) {
 	}
 
 	for i := 0; i < 10000000; i++ {
-		fmt.Println("i: ", i)
+		// fmt.Println("i: ", i)
 		producer.Input() <- &ProducerMessage{
 			Topic:   "Topic1",
 			payload: "hello",

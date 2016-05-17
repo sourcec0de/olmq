@@ -1,7 +1,5 @@
 package lmq
 
-import "log"
-
 // AsyncProducer publishes messages using a non-blocking API. You must read from the
 // Errors() channel or the producer will deadlock. You must call Close() or AsyncClose()
 // on a producer to avoid leaks: it will not be garbage-collected automatically when it
@@ -24,18 +22,6 @@ type AsyncProducer interface {
 	// Input is the input channel for the user to write messages to that they
 	// wish to send.
 	Input() chan<- *ProducerMessage
-
-	// Successes is the success output channel back to the user when AckSuccesses is
-	// enabled. If Return.Successes is true, you MUST read from this channel or the
-	// Producer will deadlock. It is suggested that you send and read messages
-	// together in a single select statement.
-	Successes() <-chan *ProducerMessage
-
-	// Errors is the error output channel back to the user. You MUST read from this
-	// channel or the Producer will deadlock when the channel is full. Alternatively,
-	// you can set Producer.Return.Errors in your config to false, which prevents
-	// errors to be returned.
-	Errors() <-chan *ProducerError
 }
 
 type asyncProducer struct {
@@ -101,16 +87,8 @@ func (p *asyncProducer) Close() error {
 	return nil
 }
 
-func (p *asyncProducer) Errors() <-chan *ProducerError {
-	return p.errors
-}
-
 func (p *asyncProducer) Input() chan<- *ProducerMessage {
 	return p.input
-}
-
-func (p *asyncProducer) Successes() <-chan *ProducerMessage {
-	return p.successes
 }
 
 type topicProducer struct {
@@ -139,16 +117,12 @@ func (tp *topicProducer) dispatch() {
 	i := 0
 	var msgs []Message
 	for msg := range tp.input {
-		log.Println("Read from tp.input: ", i)
 		i++
 		msgs = append(msgs, Message(msg.payload))
-		// tp.parent.successes <- msg // for test only, will be delete
 		if len(msgs) >= 9 {
 			tp.parent.client.WriteMessages(msgs, tp.topic)
 			msgs = msgs[:0]
 		}
-		log.Println("Never get here")
-
 	}
 }
 
