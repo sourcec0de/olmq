@@ -10,7 +10,7 @@ func TestNewAsyncProducer(t *testing.T) {
 	conf := &Config{}
 	conf.Topic.maxNum = 256
 	conf.Topic.mapSize = 256 * 1024 * 1024
-	conf.Topic.partitionSize = 4096 * 4
+	conf.Topic.partitionSize = 4096 * 100
 	conf.Topic.partitionsToKeep = 8
 	conf.ChannelBufferSize = 256
 
@@ -34,7 +34,7 @@ func TestNewAsyncProducerWithMultiThread(t *testing.T) {
 	conf := &Config{}
 	conf.Topic.maxNum = 256
 	conf.Topic.mapSize = 256 * 1024 * 1024
-	conf.Topic.partitionSize = 4096 * 4
+	conf.Topic.partitionSize = 4096 * 100
 	conf.Topic.partitionsToKeep = 8
 	conf.ChannelBufferSize = 256
 
@@ -70,12 +70,11 @@ func TestNewAsyncProducerWithMultiThread(t *testing.T) {
 	<-quit
 }
 
-/*
 func BenchmarkNewAsyncProducer(b *testing.B) {
 	conf := &Config{}
 	conf.Topic.maxNum = 256
 	conf.Topic.mapSize = 256 * 1024 * 1024
-	conf.Topic.partitionSize = 4096 * 4
+	conf.Topic.partitionSize = 4096 * 100
 	conf.Topic.partitionsToKeep = 8
 	conf.ChannelBufferSize = 256
 
@@ -99,7 +98,7 @@ func BenchmarkNewAsyncProducerWithMultiThread(b *testing.B) {
 	conf := &Config{}
 	conf.Topic.maxNum = 256
 	conf.Topic.mapSize = 256 * 1024 * 1024
-	conf.Topic.partitionSize = 4096 * 4
+	conf.Topic.partitionSize = 4096 * 100
 	conf.Topic.partitionsToKeep = 8
 	conf.ChannelBufferSize = 256
 
@@ -136,4 +135,3 @@ func BenchmarkNewAsyncProducerWithMultiThread(b *testing.B) {
 		}
 	}
 }
-*/
