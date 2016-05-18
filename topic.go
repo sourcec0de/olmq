@@ -89,9 +89,8 @@ func (topic *lmdbTopic) initOwnerMeta(txn *lmdb.Txn) error {
 			if err.Errno == lmdb.KeyExist {
 				topic.partitionMetaInited = true
 				return nil
-			} else {
-				return err
 			}
+			return err
 		}
 		return err
 	}
