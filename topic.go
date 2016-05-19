@@ -423,29 +423,36 @@ func (topic *lmdbTopic) updateConsumingOffset(txn *lmdb.Txn, consumerTag string,
 func (topic *lmdbTopic) openPartitionForConsuming(txn *lmdb.Txn, consumerTag string) error {
 	currentPartitionID, err := topic.consumingPartitionID(txn, consumerTag, topic.currentPartitionID)
 	if err != nil {
+		log.Println("Call topic.consumingPartitionID failed: ", err)
 		return err
 	}
 	topic.currentPartitionID = currentPartitionID
 	path := topic.partitionPath(topic.currentPartitionID)
+	log.Println("path: ", path)
 	return topic.openConsumingDB(path)
 }
 
 func (topic *lmdbTopic) openConsumingDB(path string) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
-		return nil
+		log.Println("Call lmdb.NewEnv() failed: ", err)
+		return err
 	}
 	topic.consumedEnv = env
 	if err = env.SetMaxDBs(1); err != nil {
+		log.Println("Call env.SetMaxDBs failed: ", err)
 		return err
 	}
 	if err = env.SetMapSize(topic.conf.Topic.partitionSize); err != nil {
+		log.Println("Call env.SetMapSize failed: ", err)
 		return err
 	}
 	if err = env.Open(path, lmdb.Readonly|lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
+		log.Println("Call env.Open failed: ", err)
 		return err
 	}
 	if _, err = env.ReaderCheck(); err != nil {
+		log.Println("Call env.ReaderCheck failed: ", err)
 		return err
 	}
 	err = env.View(func(txn *lmdb.Txn) error {
@@ -453,15 +460,18 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 		return err
 	})
 	if err != nil {
+		log.Println("Call env.View failed: ", err)
 		return err
 	}
 	rtxn, err := env.BeginTxn(nil, lmdb.Readonly)
 	if err != nil {
+		log.Println("Call env.BeginTxn failed: ", err)
 		return err
 	}
 	topic.consumingTxn = rtxn
 	cursor, err := rtxn.OpenCursor(topic.currentPartitionDB)
 	if err != nil {
+		log.Println("Call rtxn.OpenCursor failed: ", err)
 		return err
 	}
 	topic.consumingCursor = cursor
