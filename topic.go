@@ -514,7 +514,9 @@ func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint
 		offset := bytesToUInt64(offsetBuf)
 		return offset, nil
 	}
+	log.Println("After call txn.Get: ", err)
 	if err, ok := err.(*lmdb.OpError); ok {
+		log.Println("After call txn.Get: ", err.Errno)
 		if err.Errno != lmdb.NotFound {
 			return 0, err.Errno
 		}
