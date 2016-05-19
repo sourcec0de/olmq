@@ -517,12 +517,15 @@ func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint
 	if !lmdb.IsNotFound(err) {
 		return 0, err
 	}
+	log.Println("After call lmdb.IsNotFound")
 	cursor, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
+		log.Println("After call txn.OpenCursor: ", err)
 		return 0, err
 	}
 	_, offsetBuf, err = cursor.Get(nil, nil, lmdb.First)
 	if err != nil {
+		log.Println("After call txn.OpenCursor: ", err)
 		return 0, err
 	}
 	return bytesToUInt64(offsetBuf), nil
