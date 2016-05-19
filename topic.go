@@ -482,20 +482,24 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, searchFrom uint64) (uint64, error) {
 	offset, err := topic.consumingOffset(txn, consumerTag)
 	if err != nil {
+		log.Println("Call topic.consumingOffset failed: ", err)
 		return 0, err
 	}
 	cursor, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
+		log.Println("Call topic.consumingOffset failed: ", err)
 		return 0, err
 	}
 	idBuf, eoffsetBuf, err := cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.SetRange)
 	if err != nil {
+		log.Println("Call topic.consumingOffset failed: ", err)
 		return 0, err
 	}
 	eoffset := bytesToUInt64(eoffsetBuf)
 	for offset > eoffset {
 		idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
 		if err != nil {
+			log.Println("Call topic.consumingOffset failed: ", err)
 			return 0, err
 		}
 		eoffset = bytesToUInt64(eoffsetBuf)
