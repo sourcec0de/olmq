@@ -490,6 +490,7 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 		log.Println("In consumingPartitionID Call txn.OpenCursor failed: ", err)
 		return 0, err
 	}
+	log.Println("searchFrom: ", searchFrom)
 	idBuf, eoffsetBuf, err := cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.SetRange)
 	if err != nil {
 		log.Println("In consumingPartitionID Call cursor.Get failed: ", err)
