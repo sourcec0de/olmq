@@ -71,7 +71,7 @@ func (broker *lmdbBroker) Open(conf *Config) error {
 		return err
 	}
 	envPath := fmt.Sprintf("%s/%s", broker.path, envMetaName)
-	if err := env.Open(envPath, lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
+	if err = env.Open(envPath, lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
 		return err
 	}
 	if _, err := env.ReaderCheck(); err != nil {

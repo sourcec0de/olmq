@@ -87,6 +87,7 @@ func (topic *lmdbTopic) initOwnerMeta(txn *lmdb.Txn) error {
 	if err != nil {
 		if err, ok := err.(*lmdb.OpError); ok {
 			if err.Errno == lmdb.KeyExist {
+				log.Println("in initOwnerMeta, partitionMetaInited has already inited")
 				topic.partitionMetaInited = true
 				return nil
 			}
