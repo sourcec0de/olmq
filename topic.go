@@ -494,6 +494,11 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 	idBuf, eoffsetBuf, err := cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.SetRange)
 	if err != nil {
 		log.Println("In consumingPartitionID Call cursor.Get failed: ", err)
+		stat, err1 := txn.Stat(topic.partitionMeta)
+		log.Println("txn.Stat: ", stat)
+		if err1 != nil {
+			log.Println("txn.Stat err: ", err1)
+		}
 		return 0, err
 	}
 	eoffset := bytesToUInt64(eoffsetBuf)
