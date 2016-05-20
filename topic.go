@@ -499,6 +499,20 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 		if err1 != nil {
 			log.Println("txn.Stat err: ", err1)
 		}
+		idBuf, eoffsetBuf, err = cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.First)
+		if err != nil {
+			log.Println("cursor.Get lmdb.First failed: ", err1)
+		}
+		eoffset := bytesToUInt64(eoffsetBuf)
+		for offset > eoffset {
+			idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
+			if err != nil {
+				log.Println("In consumingPartitionID Call cursor.Get failed: ", err)
+				return 0, err
+			}
+			eoffset = bytesToUInt64(eoffsetBuf)
+			log.Println("eoffset: ", eoffset)
+		}
 		return 0, err
 	}
 	eoffset := bytesToUInt64(eoffsetBuf)
