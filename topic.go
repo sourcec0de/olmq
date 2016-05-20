@@ -92,6 +92,7 @@ func (topic *lmdbTopic) initOwnerMeta(txn *lmdb.Txn) error {
 				if err != nil {
 					log.Println("txn.Get failed: ", err)
 				}
+				log.Println("Poffset: ", offsetBuf)
 				log.Println("Poffset: ", bytesToUInt64(offsetBuf))
 				topic.partitionMetaInited = true
 				return nil
