@@ -525,6 +525,7 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 		return 0, err
 	}
 	eoffset := bytesToUInt64(eoffsetBuf)
+	log.Println("In consumingPartitionID after call topic.consumingOffset eoffset: ", eoffset)
 	for offset > eoffset {
 		idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
 		if err != nil {
@@ -532,6 +533,7 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 			return 0, err
 		}
 		eoffset = bytesToUInt64(eoffsetBuf)
+		log.Println("In consumingPartitionID after call topic.consumingOffset eoffset: ", eoffset)
 	}
 	return bytesToUInt64(idBuf), nil
 }
