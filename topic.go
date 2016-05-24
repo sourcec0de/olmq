@@ -492,6 +492,7 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 		log.Println("In consumingPartitionID Call topic.consumingOffset failed: ", err)
 		return 0, err
 	}
+	log.Println("In consumingPartitionID after call topic.consumingOffset offset: ", offset)
 	cursor, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
 		log.Println("In consumingPartitionID Call txn.OpenCursor failed: ", err)
