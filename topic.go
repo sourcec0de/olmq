@@ -2,11 +2,9 @@ package lmq
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
-	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
@@ -88,13 +86,12 @@ func (topic *lmdbTopic) initOwnerMeta(txn *lmdb.Txn) error {
 	if err != nil {
 		if err, ok := err.(*lmdb.OpError); ok {
 			if err.Errno == lmdb.KeyExist {
-				log.Println("in initOwnerMeta, partitionMetaInited has already inited")
+
 				offsetBuf, err := txn.Get(topic.ownerMeta, keyProducerBytes)
 				if err != nil {
-					log.Println("txn.Get failed: ", err)
+
 				}
-				log.Println("Poffset: ", offsetBuf)
-				log.Println("Poffset: ", bytesToUInt64(offsetBuf))
+
 				topic.partitionMetaInited = true
 				return nil
 			}
@@ -400,7 +397,7 @@ func (topic *lmdbTopic) consumingFromPartition(out chan<- Message) {
 			} else {
 				if err, ok := err.(*lmdb.OpError); ok {
 					if err.Errno != lmdb.NotFound {
-						log.Println(err)
+
 					}
 				}
 				pOffset, err := topic.persistedOffset(txn)
@@ -431,65 +428,56 @@ func (topic *lmdbTopic) updateConsumingOffset(txn *lmdb.Txn, consumerTag string,
 func (topic *lmdbTopic) openPartitionForConsuming(txn *lmdb.Txn, consumerTag string) error {
 	currentPartitionID, err := topic.consumingPartitionID(txn, consumerTag, topic.currentPartitionID)
 	if err != nil {
-		log.Println("Call topic.consumingPartitionID failed: ", err)
+
 		return err
 	}
-	log.Println("Call topic.consumingPartitionID currentPartitionID: ", currentPartitionID)
+
 	topic.currentPartitionID = currentPartitionID
 	path := topic.partitionPath(topic.currentPartitionID)
-	log.Println("path: ", path)
+
 	return topic.openConsumingDB(path)
 }
 
 func (topic *lmdbTopic) openConsumingDB(path string) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
-		log.Println("Call lmdb.NewEnv() failed: ", err)
+
 		return err
 	}
 	topic.consumedEnv = env
 	if err = env.SetMaxDBs(1); err != nil {
-		log.Println("Call env.SetMaxDBs failed: ", err)
+
 		return err
 	}
 	if err = env.SetMapSize(topic.conf.Topic.partitionSize); err != nil {
-		log.Println("Call env.SetMapSize failed: ", err)
+
 		return err
 	}
 	if err = env.Open(path, lmdb.Readonly|lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
-		log.Println("Call env.Open failed: ", err)
+
 		return err
 	}
 	if _, err = env.ReaderCheck(); err != nil {
-		log.Println("Call env.ReaderCheck failed: ", err)
+
 		return err
 	}
 	err = env.View(func(txn *lmdb.Txn) error {
-		dbi, err := txn.OpenRoot(0)
-		if err != nil {
-			return err
-		}
-		scanner := lmdbscan.New(txn, dbi)
-		for scanner.Scan() {
-			log.Printf("DATABASE %q", scanner.Key())
-		}
-		log.Println("scanner.Err: ", scanner.Err())
 		topic.currentPartitionDB, err = txn.CreateDBI(uInt64ToString(topic.currentPartitionID))
 		return err
 	})
 	if err != nil {
-		log.Println("Call env.View failed: ", err)
+
 		return err
 	}
 	rtxn, err := env.BeginTxn(nil, lmdb.Readonly)
 	if err != nil {
-		log.Println("Call env.BeginTxn failed: ", err)
+
 		return err
 	}
 	topic.consumingTxn = rtxn
 	cursor, err := rtxn.OpenCursor(topic.currentPartitionDB)
 	if err != nil {
-		log.Println("Call rtxn.OpenCursor failed: ", err)
+
 		return err
 	}
 	topic.consumingCursor = cursor
@@ -500,47 +488,47 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, searchFrom uint64) (uint64, error) {
 	offset, err := topic.consumingOffset(txn, consumerTag)
 	if err != nil {
-		log.Println("In consumingPartitionID Call topic.consumingOffset failed: ", err)
+
 		return 0, err
 	}
-	log.Println("In consumingPartitionID after call topic.consumingOffset offset: ", offset)
+
 	cursor, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
-		log.Println("In consumingPartitionID Call txn.OpenCursor failed: ", err)
+
 		return 0, err
 	}
-	log.Println("searchFrom: ", searchFrom)
+
 	idBuf, eoffsetBuf, err := cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.SetRange)
 	if err != nil {
-		log.Println("In consumingPartitionID Call cursor.Get failed: ", err)
+
 		stat, err1 := txn.Stat(topic.partitionMeta)
-		log.Println("txn.Stat: ", stat)
+
 		if err1 != nil {
-			log.Println("txn.Stat err: ", err1)
+
 		}
 		idBuf, eoffsetBuf, err = cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.First)
 		if err != nil {
-			log.Println("cursor.Get lmdb.First failed: ", err)
+
 		}
 		eoffset := bytesToUInt64(eoffsetBuf)
-		log.Println("eoffset: ", eoffset)
+
 		for offset > eoffset {
 			idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
 			if err != nil {
 				if lmdb.IsNotFound(err) {
 					break
 				} else {
-					log.Println("In consumingPartitionID Call cursor.Get failed: ", err)
+
 					panic(err)
 				}
 			}
 			eoffset = bytesToUInt64(eoffsetBuf)
-			log.Println("eoffset: ", eoffset)
+
 		}
 		return 0, err
 	}
 	eoffset := bytesToUInt64(eoffsetBuf)
-	log.Println("In consumingPartitionID after call topic.consumingOffset eoffset: ", eoffset)
+
 	preIDBuf := idBuf
 	for offset > eoffset {
 		idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
@@ -549,7 +537,6 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 		}
 		preIDBuf = idBuf
 		eoffset = bytesToUInt64(eoffsetBuf)
-		log.Println("In consumingPartitionID after call topic.consumingOffset eoffset: ", eoffset)
 
 	}
 	return bytesToUInt64(preIDBuf), nil
@@ -565,17 +552,17 @@ func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint
 	if !lmdb.IsNotFound(err) {
 		return 0, err
 	}
-	log.Println("After call lmdb.IsNotFound")
+
 	cursor, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
-		log.Println("After call txn.OpenCursor: ", err)
+
 		return 0, err
 	}
 	_, offsetBuf, err = cursor.Get(nil, nil, lmdb.First)
 	if err != nil {
-		log.Println("After call cursor.Get: ", err)
+
 		return 0, err
 	}
-	log.Println("In consumingOffset, before return: ", err)
+
 	return bytesToUInt64(offsetBuf), nil
 }
