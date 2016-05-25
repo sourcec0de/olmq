@@ -520,15 +520,19 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 		}
 		idBuf, eoffsetBuf, err = cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.First)
 		if err != nil {
-			log.Println("cursor.Get lmdb.First failed: ", err1)
+			log.Println("cursor.Get lmdb.First failed: ", err)
 		}
 		eoffset := bytesToUInt64(eoffsetBuf)
 		log.Println("eoffset: ", eoffset)
 		for offset > eoffset {
 			idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
 			if err != nil {
-				log.Println("In consumingPartitionID Call cursor.Get failed: ", err)
-				return 0, err
+				if lmdb.IsNotFound(err) {
+					break
+				} else {
+					log.Println("In consumingPartitionID Call cursor.Get failed: ", err)
+					panic(err)
+				}
 			}
 			eoffset = bytesToUInt64(eoffsetBuf)
 			log.Println("eoffset: ", eoffset)
@@ -537,16 +541,18 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 	}
 	eoffset := bytesToUInt64(eoffsetBuf)
 	log.Println("In consumingPartitionID after call topic.consumingOffset eoffset: ", eoffset)
+	preIDBuf := idBuf
 	for offset > eoffset {
 		idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
 		if err != nil {
-			log.Println("In consumingPartitionID Call cursor.Get failed: ", err)
-			return 0, err
+			break
 		}
+		preIDBuf = idBuf
 		eoffset = bytesToUInt64(eoffsetBuf)
 		log.Println("In consumingPartitionID after call topic.consumingOffset eoffset: ", eoffset)
+
 	}
-	return bytesToUInt64(idBuf), nil
+	return bytesToUInt64(preIDBuf), nil
 }
 
 func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint64, error) {
