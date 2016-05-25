@@ -469,7 +469,7 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 		if err != nil {
 			return err
 		}
-		scanner := lmdbscan.NewScanner(txn, dbi)
+		scanner := lmdbscan.New(txn, dbi)
 		for scanner.Scan() {
 			log.Printf("DATABASE %q", scanner.Key())
 		}
