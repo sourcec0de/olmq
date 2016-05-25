@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
@@ -433,6 +434,7 @@ func (topic *lmdbTopic) openPartitionForConsuming(txn *lmdb.Txn, consumerTag str
 		log.Println("Call topic.consumingPartitionID failed: ", err)
 		return err
 	}
+	log.Println("Call topic.consumingPartitionID currentPartitionID: ", currentPartitionID)
 	topic.currentPartitionID = currentPartitionID
 	path := topic.partitionPath(topic.currentPartitionID)
 	log.Println("path: ", path)
@@ -463,6 +465,15 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 		return err
 	}
 	err = env.View(func(txn *lmdb.Txn) error {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		scanner := lmdbscan.NewScanner(txn, dbi)
+		for scanner.Scan() {
+			log.Printf("DATABASE %q", scanner.Key())
+		}
+		log.Println("scanner.Err: ", scanner.Err())
 		topic.currentPartitionDB, err = txn.CreateDBI(uInt64ToString(topic.currentPartitionID))
 		return err
 	})
