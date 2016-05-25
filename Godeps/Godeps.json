@@ -4,14 +4,14 @@
 	"GodepVersion": "v62",
 	"Deps": [
 		{
-			"ImportPath": "github.com/bmatsuo/lmdb-go/lmdb",
-			"Comment": "v1.6.0-11-g7ed073b",
-			"Rev": "7ed073bca400c16a43dd504a35d857939c0d8806"
+			"ImportPath": "github.com/bmatsuo/lmdb-go/exp/lmdbscan",
+			"Comment": "v1.6.0-15-gd98d6a5",
+			"Rev": "d98d6a5868d62ba48850ff46066e180b77ed7934"
 		},
 		{
-			"ImportPath": "github.com/pkg/errors",
-			"Comment": "v0.2.0-5-g7a0abd8",
-			"Rev": "7a0abd8f636d0048ea2fca80a67a23ef8c0e5c7d"
+			"ImportPath": "github.com/bmatsuo/lmdb-go/lmdb",
+			"Comment": "v1.6.0-15-gd98d6a5",
+			"Rev": "d98d6a5868d62ba48850ff46066e180b77ed7934"
 		}
 	]
 }
