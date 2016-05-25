@@ -103,7 +103,7 @@ func (broker *lmdbBroker) WritablePartition(topic string) (uint64, error) {
 		t = newLmdbTopic(broker.env, topic, broker.conf)
 		broker.m[topic] = t
 	}
-	return t.OpenPartitionForPersisted()
+	return t.OpenPartitionForPersist()
 }
 
 func (broker *lmdbBroker) WriteMessages(msgs []Message, topic string) {
@@ -113,9 +113,9 @@ func (broker *lmdbBroker) WriteMessages(msgs []Message, topic string) {
 	if t == nil {
 		t = newLmdbTopic(broker.env, topic, broker.conf)
 		broker.m[topic] = t
-		t.OpenPartitionForPersisted()
+		t.OpenPartitionForPersist()
 	}
-	t.PersistedToPartition(msgs)
+	t.PersistToPartition(msgs)
 }
 
 func (broker *lmdbBroker) ReadMessages(consumerTag string, topic string) <-chan Message {
@@ -126,6 +126,6 @@ func (broker *lmdbBroker) ReadMessages(consumerTag string, topic string) <-chan 
 		t = newLmdbTopic(broker.env, topic, broker.conf)
 		broker.m[topic] = t
 	}
-	t.OpenPartitionForConsuming(consumerTag)
-	return t.ConsumingFromPartition()
+	t.OpenPartitionForConsum(consumerTag)
+	return t.ConsumFromPartition()
 }

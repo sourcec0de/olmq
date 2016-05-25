@@ -2,6 +2,7 @@ package lmq
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -22,10 +23,10 @@ var (
 )
 
 type Topic interface {
-	OpenPartitionForPersisted() (uint64, error)
-	PersistedToPartition(msgs []Message)
-	ConsumingFromPartition() <-chan Message
-	OpenPartitionForConsuming(consumerTag string)
+	OpenPartitionForPersist() (uint64, error)
+	PersistToPartition(msgs []Message)
+	ConsumFromPartition() <-chan Message
+	OpenPartitionForConsum(consumerTag string)
 }
 
 type PartitionMeta struct {
@@ -44,10 +45,10 @@ type lmdbTopic struct {
 	ownerMeta           lmdb.DBI
 	partitionMeta       lmdb.DBI
 	partitionMetaInited bool
-	persistedEnv        *lmdb.Env
+	persistEnv          *lmdb.Env
 	consumedEnv         *lmdb.Env
-	consumingCursor     *lmdb.Cursor
-	consumingTxn        *lmdb.Txn
+	consumCursor        *lmdb.Cursor
+	consumTxn           *lmdb.Txn
 	consumerTag         string
 }
 
@@ -86,12 +87,6 @@ func (topic *lmdbTopic) initOwnerMeta(txn *lmdb.Txn) error {
 	if err != nil {
 		if err, ok := err.(*lmdb.OpError); ok {
 			if err.Errno == lmdb.KeyExist {
-
-				offsetBuf, err := txn.Get(topic.ownerMeta, keyProducerBytes)
-				if err != nil {
-
-				}
-
 				topic.partitionMetaInited = true
 				return nil
 			}
@@ -118,37 +113,35 @@ func (topic *lmdbTopic) initPartitionMeta(txn *lmdb.Txn) error {
 	return txn.Put(topic.partitionMeta, initpartitionID, initOffset, lmdb.NoOverwrite)
 }
 
-func (topic *lmdbTopic) PersistedToPartition(msgs []Message) {
+func (topic *lmdbTopic) PersistToPartition(msgs []Message) {
 	isFull := false
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
-		offset, err := topic.persistedOffset(txn)
+		offset, err := topic.persistOffset(txn)
 		if err != nil {
 			return err
 		}
-		offset, err = topic.persistedToPartitionDB(offset, msgs)
+		offset, err = topic.persistToPartitionDB(offset, msgs)
 		if err == nil {
-			return topic.updatePersistedOffset(txn, offset)
+			return topic.updatePersistOffset(txn, offset)
 		}
 		return err
 	})
 	if err == nil {
 		return
 	}
-	if err, ok := err.(*lmdb.OpError); ok {
-		if err.Errno == lmdb.MapFull {
-			isFull = true
-		} else {
-			panic(err.Errno)
-		}
+	if lmdb.IsMapFull(err) {
+		isFull = true
+	} else {
+		panic(err)
 	}
 	if isFull {
-		topic.persistedRotate()
-		topic.PersistedToPartition(msgs)
+		topic.persistRotate()
+		topic.PersistToPartition(msgs)
 	}
 }
 
-func (topic *lmdbTopic) persistedToPartitionDB(offset uint64, msgs []Message) (uint64, error) {
-	err := topic.persistedEnv.Update(func(txn *lmdb.Txn) error {
+func (topic *lmdbTopic) persistToPartitionDB(offset uint64, msgs []Message) (uint64, error) {
+	err := topic.persistEnv.Update(func(txn *lmdb.Txn) error {
 		for _, v := range msgs {
 			offset++
 			k := uInt64ToBytes(offset)
@@ -161,15 +154,14 @@ func (topic *lmdbTopic) persistedToPartitionDB(offset uint64, msgs []Message) (u
 	return offset, err
 }
 
-func (topic *lmdbTopic) updatePersistedOffset(txn *lmdb.Txn, offset uint64) error {
-	err := txn.Put(topic.ownerMeta, keyProducerBytes, uInt64ToBytes(offset+1), 0)
-	return err
+func (topic *lmdbTopic) updatePersistOffset(txn *lmdb.Txn, offset uint64) error {
+	return txn.Put(topic.ownerMeta, keyProducerBytes, uInt64ToBytes(offset+1), 0)
 }
 
-func (topic *lmdbTopic) OpenPartitionForPersisted() (uint64, error) {
+func (topic *lmdbTopic) OpenPartitionForPersist() (uint64, error) {
 	partitionID := uint64(0)
 	err := topic.env.Update(func(txn *lmdb.Txn) (err error) {
-		partitionID, err = topic.openPartitionForPersisted(txn, false)
+		partitionID, err = topic.openPartitionForPersist(txn, false)
 		return
 	})
 	if err != nil {
@@ -178,19 +170,19 @@ func (topic *lmdbTopic) OpenPartitionForPersisted() (uint64, error) {
 	return partitionID, nil
 }
 
-func (topic *lmdbTopic) OpenPartitionForConsuming(consumerTag string) {
+func (topic *lmdbTopic) OpenPartitionForConsum(consumerTag string) {
 	topic.consumerTag = consumerTag
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
-		return topic.openPartitionForConsuming(txn, consumerTag)
+		return topic.openPartitionForConsum(txn, consumerTag)
 	})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (topic *lmdbTopic) persistedRotate() {
+func (topic *lmdbTopic) persistRotate() {
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
-		if err := topic.closeCurrentPersistedPartition(); err != nil {
+		if err := topic.closeCurrentPersistPartition(); err != nil {
 			return err
 		}
 		count, err := topic.countPartitions(txn)
@@ -203,7 +195,7 @@ func (topic *lmdbTopic) persistedRotate() {
 				return err
 			}
 		}
-		_, err = topic.openPartitionForPersisted(txn, true)
+		_, err = topic.openPartitionForPersist(txn, true)
 		return err
 	})
 	if err != nil {
@@ -211,26 +203,26 @@ func (topic *lmdbTopic) persistedRotate() {
 	}
 }
 
-func (topic *lmdbTopic) consumingRotate() {
+func (topic *lmdbTopic) consumRotate() {
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
-		if err := topic.closeCurrentConsumingPartition(); err != nil {
+		if err := topic.closeCurrentConsumPartition(); err != nil {
 			return err
 		}
-		return topic.openPartitionForConsuming(txn, topic.consumerTag)
+		return topic.openPartitionForConsum(txn, topic.consumerTag)
 	})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (topic *lmdbTopic) closeCurrentPersistedPartition() error {
-	topic.persistedEnv.CloseDBI(topic.currentPartitionDB)
-	return topic.persistedEnv.Close()
+func (topic *lmdbTopic) closeCurrentPersistPartition() error {
+	topic.persistEnv.CloseDBI(topic.currentPartitionDB)
+	return topic.persistEnv.Close()
 }
 
-func (topic *lmdbTopic) closeCurrentConsumingPartition() error {
-	topic.consumingCursor.Close()
-	topic.consumingTxn.Abort()
+func (topic *lmdbTopic) closeCurrentConsumPartition() error {
+	topic.consumCursor.Close()
+	topic.consumTxn.Abort()
 	topic.consumedEnv.CloseDBI(topic.currentPartitionDB)
 	return topic.consumedEnv.Close()
 }
@@ -274,7 +266,7 @@ func (topic *lmdbTopic) removeExpiredPartitions(txn *lmdb.Txn, expiredCount uint
 	return err
 }
 
-func (topic *lmdbTopic) persistedOffset(txn *lmdb.Txn) (uint64, error) {
+func (topic *lmdbTopic) persistOffset(txn *lmdb.Txn) (uint64, error) {
 	offsetBuf, err := txn.Get(topic.ownerMeta, keyProducerBytes)
 	if err != nil {
 		return 0, err
@@ -282,7 +274,7 @@ func (topic *lmdbTopic) persistedOffset(txn *lmdb.Txn) (uint64, error) {
 	return bytesToUInt64(offsetBuf), err
 }
 
-func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) (uint64, error) {
+func (topic *lmdbTopic) openPartitionForPersist(txn *lmdb.Txn, rotating bool) (uint64, error) {
 	partitionMeta, err := topic.latestPartitionMeta(txn)
 	if err != nil {
 		return 0, err
@@ -296,7 +288,7 @@ func (topic *lmdbTopic) openPartitionForPersisted(txn *lmdb.Txn, rotating bool) 
 	}
 	topic.currentPartitionID = partitionMeta.id
 	path := topic.partitionPath(topic.currentPartitionID)
-	if err = topic.openPersistedDB(path); err != nil {
+	if err = topic.openPersistDB(path); err != nil {
 		return 0, err
 	}
 	return topic.currentPartitionID, nil
@@ -308,7 +300,7 @@ func (topic *lmdbTopic) updatePartitionMeta(txn *lmdb.Txn, partitionMeta *Partit
 	return txn.Put(topic.partitionMeta, idBuf, offsetBuf, lmdb.Append)
 }
 
-func (topic *lmdbTopic) openPersistedDB(path string) error {
+func (topic *lmdbTopic) openPersistDB(path string) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		return err
@@ -333,7 +325,7 @@ func (topic *lmdbTopic) openPersistedDB(path string) error {
 	if err != nil {
 		return err
 	}
-	topic.persistedEnv = env
+	topic.persistEnv = env
 	return nil
 }
 
@@ -357,108 +349,96 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 	return partitionMeta, nil
 }
 
-func (topic *lmdbTopic) ConsumingFromPartition() <-chan Message {
+func (topic *lmdbTopic) ConsumFromPartition() <-chan Message {
 	buf := make(chan Message, topic.conf.ChannelBufferSize)
-	topic.consumingFromPartition(buf)
+	topic.consumFromPartition(buf)
 	return buf
 }
 
-func (topic *lmdbTopic) consumingFromPartition(out chan<- Message) {
+func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
 	shouldRotate := false
-	{
-		err := topic.env.Update(func(txn *lmdb.Txn) error {
-			pOffset, err := topic.persistedOffset(txn)
-			if err != nil {
-				return err
+	err := topic.env.Update(func(txn *lmdb.Txn) error {
+		pOffset, err := topic.persistOffset(txn)
+		if err != nil {
+			return err
+		}
+		cOffset, err := topic.consumOffset(txn, topic.consumerTag)
+		if err != nil {
+			return err
+		}
+		if pOffset-cOffset == 1 || pOffset == 0 {
+			return nil
+		}
+		offsetBuf, payload, err := topic.consumCursor.Get(uInt64ToBytes(cOffset), nil, lmdb.SetRange)
+		if err == nil {
+			i := 0
+			offset := bytesToUInt64(offsetBuf)
+			for cnt := cap(out); err == nil && cnt > 0; cnt-- {
+				out <- payload
+				i++
+				offset = bytesToUInt64(offsetBuf)
+				offsetBuf, payload, err = topic.consumCursor.Get(nil, nil, lmdb.Next)
 			}
-			cOffset, err := topic.consumingOffset(txn, topic.consumerTag)
-			if err != nil {
-				return err
-			}
-			if pOffset-cOffset == 1 || pOffset == 0 {
-				return nil
-			}
-			offsetBuf, payload, err := topic.consumingCursor.Get(uInt64ToBytes(cOffset), nil, lmdb.SetRange)
-			if err == nil {
-				i := 0
-				offset := bytesToUInt64(offsetBuf)
-				for cnt := cap(out); err == nil && cnt > 0; cnt-- {
-					out <- payload
-					i++
-					offset = bytesToUInt64(offsetBuf)
-					offsetBuf, payload, err = topic.consumingCursor.Get(nil, nil, lmdb.Next)
-				}
-				if offset > 0 {
-					err := topic.updateConsumingOffset(txn, topic.consumerTag, offset+1)
-					if err != nil {
-						return err
-					}
-				}
-			} else {
-				if err, ok := err.(*lmdb.OpError); ok {
-					if err.Errno != lmdb.NotFound {
-
-					}
-				}
-				pOffset, err := topic.persistedOffset(txn)
+			if offset > 0 {
+				err = topic.updateConsumOffset(txn, topic.consumerTag, offset+1)
 				if err != nil {
 					return err
 				}
-				if cOffset <= pOffset {
-					shouldRotate = true
-				}
 			}
-			return nil
-		})
-		if err != nil {
-			panic(err)
+		} else {
+			if !lmdb.IsNotFound(err) {
+				log.Println("Consumer seek error: ", err)
+			}
+			pOffset, err := topic.persistOffset(txn)
+			if err != nil {
+				return err
+			}
+			if cOffset <= pOffset {
+				shouldRotate = true
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
 	}
 	if shouldRotate {
-		topic.consumingRotate()
-		topic.consumingFromPartition(out)
+		topic.consumRotate()
+		topic.consumFromPartition(out)
 	}
 }
 
-func (topic *lmdbTopic) updateConsumingOffset(txn *lmdb.Txn, consumerTag string, offset uint64) error {
+func (topic *lmdbTopic) updateConsumOffset(txn *lmdb.Txn, consumerTag string, offset uint64) error {
 	keyConsumerStr := fmt.Sprintf("%s_%s", preConsumerStr, consumerTag)
 	return txn.Put(topic.ownerMeta, []byte(keyConsumerStr), uInt64ToBytes(offset), 0)
 }
 
-func (topic *lmdbTopic) openPartitionForConsuming(txn *lmdb.Txn, consumerTag string) error {
-	currentPartitionID, err := topic.consumingPartitionID(txn, consumerTag, topic.currentPartitionID)
+func (topic *lmdbTopic) openPartitionForConsum(txn *lmdb.Txn, consumerTag string) error {
+	currentPartitionID, err := topic.consumPartitionID(txn, consumerTag, topic.currentPartitionID)
 	if err != nil {
-
 		return err
 	}
-
 	topic.currentPartitionID = currentPartitionID
 	path := topic.partitionPath(topic.currentPartitionID)
-
-	return topic.openConsumingDB(path)
+	return topic.openConsumDB(path)
 }
 
-func (topic *lmdbTopic) openConsumingDB(path string) error {
+func (topic *lmdbTopic) openConsumDB(path string) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
-
 		return err
 	}
 	topic.consumedEnv = env
 	if err = env.SetMaxDBs(1); err != nil {
-
 		return err
 	}
 	if err = env.SetMapSize(topic.conf.Topic.partitionSize); err != nil {
-
 		return err
 	}
 	if err = env.Open(path, lmdb.Readonly|lmdb.NoSync|lmdb.NoSubdir, 0644); err != nil {
-
 		return err
 	}
 	if _, err = env.ReaderCheck(); err != nil {
-
 		return err
 	}
 	err = env.View(func(txn *lmdb.Txn) error {
@@ -466,7 +446,6 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 		return err
 	})
 	if err != nil {
-
 		return err
 	}
 	rtxn, err := env.BeginTxn(nil, lmdb.Readonly)
@@ -474,61 +453,43 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 
 		return err
 	}
-	topic.consumingTxn = rtxn
+	topic.consumTxn = rtxn
 	cursor, err := rtxn.OpenCursor(topic.currentPartitionDB)
 	if err != nil {
 
 		return err
 	}
-	topic.consumingCursor = cursor
+	topic.consumCursor = cursor
 	rtxn.Reset()
 	return rtxn.Renew()
 }
 
-func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, searchFrom uint64) (uint64, error) {
-	offset, err := topic.consumingOffset(txn, consumerTag)
+func (topic *lmdbTopic) consumPartitionID(txn *lmdb.Txn, consumerTag string, searchFrom uint64) (uint64, error) {
+	offset, err := topic.consumOffset(txn, consumerTag)
 	if err != nil {
-
 		return 0, err
 	}
-
 	cursor, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
-
 		return 0, err
 	}
-
 	idBuf, eoffsetBuf, err := cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.SetRange)
 	if err != nil {
-
-		stat, err1 := txn.Stat(topic.partitionMeta)
-
-		if err1 != nil {
-
-		}
-		idBuf, eoffsetBuf, err = cursor.Get(uInt64ToBytes(searchFrom), nil, lmdb.First)
-		if err != nil {
-
-		}
 		eoffset := bytesToUInt64(eoffsetBuf)
-
 		for offset > eoffset {
 			idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
 			if err != nil {
 				if lmdb.IsNotFound(err) {
 					break
 				} else {
-
-					panic(err)
+					return 0, err
 				}
 			}
 			eoffset = bytesToUInt64(eoffsetBuf)
-
 		}
 		return 0, err
 	}
 	eoffset := bytesToUInt64(eoffsetBuf)
-
 	preIDBuf := idBuf
 	for offset > eoffset {
 		idBuf, eoffsetBuf, err = cursor.Get(nil, nil, lmdb.Next)
@@ -537,12 +498,11 @@ func (topic *lmdbTopic) consumingPartitionID(txn *lmdb.Txn, consumerTag string, 
 		}
 		preIDBuf = idBuf
 		eoffset = bytesToUInt64(eoffsetBuf)
-
 	}
 	return bytesToUInt64(preIDBuf), nil
 }
 
-func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint64, error) {
+func (topic *lmdbTopic) consumOffset(txn *lmdb.Txn, consumerTag string) (uint64, error) {
 	keyConsumserStr := fmt.Sprintf("%s_%s", preConsumerStr, consumerTag)
 	offsetBuf, err := txn.Get(topic.ownerMeta, []byte(keyConsumserStr))
 	if err == nil {
@@ -552,7 +512,6 @@ func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint
 	if !lmdb.IsNotFound(err) {
 		return 0, err
 	}
-
 	cursor, err := txn.OpenCursor(topic.partitionMeta)
 	if err != nil {
 
@@ -560,9 +519,7 @@ func (topic *lmdbTopic) consumingOffset(txn *lmdb.Txn, consumerTag string) (uint
 	}
 	_, offsetBuf, err = cursor.Get(nil, nil, lmdb.First)
 	if err != nil {
-
 		return 0, err
 	}
-
 	return bytesToUInt64(offsetBuf), nil
 }
