@@ -465,7 +465,7 @@ func (topic *lmdbTopic) openConsumingDB(path string) error {
 		return err
 	}
 	err = env.View(func(txn *lmdb.Txn) error {
-		dbi, err = txn.OpenRoot(0)
+		dbi, err := txn.OpenRoot(0)
 		if err != nil {
 			return err
 		}
