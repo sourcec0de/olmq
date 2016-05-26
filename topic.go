@@ -354,7 +354,7 @@ func (topic *lmdbTopic) ConsumFromPartition() <-chan Message {
 
 	buf := make(chan Message, topic.conf.ChannelBufferSize)
 	go func() {
-		ticker := time.NewTicker(time.Microsecond * 500)
+		ticker := time.NewTicker(time.Second * 10)
 		for range ticker.C {
 			topic.consumFromPartition(buf)
 		}
