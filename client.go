@@ -1,5 +1,7 @@
 package lmq
 
+import "log"
+
 // Client is a generic mq client. It manages connections to one broker.
 type Client interface {
 	// Config returns the Config struct of the client. This struct should not be
@@ -49,5 +51,6 @@ func (client *client) WriteMessages(msgs []Message, topic string) {
 }
 
 func (client *client) ReadMessages(consumerTag string, topic string) <-chan Message {
+	log.Println("In client.ReadMessages, consumerTag: ", consumerTag, "topic: ", topic)
 	return client.broker.ReadMessages(consumerTag, topic)
 }
