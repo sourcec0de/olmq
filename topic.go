@@ -375,6 +375,7 @@ func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
 		}
 		log.Println("cOffset: ", cOffset)
 		if pOffset-cOffset == 1 || pOffset == 0 {
+			log.Println("return?")
 			return nil
 		}
 		offsetBuf, payload, err := topic.consumCursor.Get(uInt64ToBytes(cOffset), nil, lmdb.SetRange)
