@@ -378,8 +378,8 @@ func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
 				i++
 				offset = bytesToUInt64(offsetBuf)
 				offsetBuf, payload, err = topic.consumCursor.Get(nil, nil, lmdb.Next)
-				if err != nil {
-					log.Println("err: ", err)
+				if err != nil && lmdb.IsNotFound(err) {
+					break
 				}
 			}
 			if offset > 0 {
