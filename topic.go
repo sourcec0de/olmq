@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -353,7 +354,8 @@ func (topic *lmdbTopic) ConsumFromPartition() <-chan Message {
 
 	buf := make(chan Message, topic.conf.ChannelBufferSize)
 	go func() {
-		for {
+		ticker := time.NewTicker(time.Microsecond * 500)
+		for range ticker.C {
 			topic.consumFromPartition(buf)
 		}
 	}()
