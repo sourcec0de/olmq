@@ -382,6 +382,8 @@ func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
 		if err == nil {
 			i := 0
 			offset := bytesToUInt64(offsetBuf)
+			log.Println("offset: ", offset)
+			log.Println("payload: ", payload)
 			for cnt := cap(out); err == nil && cnt > 0; cnt-- {
 				out <- payload
 				i++
