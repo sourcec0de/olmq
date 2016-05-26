@@ -378,6 +378,9 @@ func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
 				i++
 				offset = bytesToUInt64(offsetBuf)
 				offsetBuf, payload, err = topic.consumCursor.Get(nil, nil, lmdb.Next)
+				if err != nil {
+					log.Println("err: ", err)
+				}
 			}
 			if offset > 0 {
 				err = topic.updateConsumOffset(txn, topic.consumerTag, offset+1)
