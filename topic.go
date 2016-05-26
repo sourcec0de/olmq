@@ -351,7 +351,7 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 
 func (topic *lmdbTopic) ConsumFromPartition() <-chan Message {
 	buf := make(chan Message, topic.conf.ChannelBufferSize)
-	topic.consumFromPartition(buf)
+	go topic.consumFromPartition(buf)
 	return buf
 }
 
