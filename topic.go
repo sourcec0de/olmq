@@ -352,7 +352,12 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 func (topic *lmdbTopic) ConsumFromPartition() <-chan Message {
 	log.Println("Begin topic.ConsumFromPartition")
 	buf := make(chan Message, topic.conf.ChannelBufferSize)
-	go topic.consumFromPartition(buf)
+	go func() {
+		for {
+			topic.consumFromPartition(buf)
+		}
+	}()
+
 	log.Println("End topic.ConsumFromPartition")
 	return buf
 }
@@ -386,7 +391,6 @@ func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
 				offsetBuf, payload, err = topic.consumCursor.Get(nil, nil, lmdb.Next)
 				if err != nil && lmdb.IsNotFound(err) {
 					log.Println("After topic.consumCursor.Get, failed with error: ", err)
-					// break
 				}
 			}
 			if offset > 0 {
