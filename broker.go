@@ -2,7 +2,6 @@ package lmq
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -120,17 +119,17 @@ func (broker *lmdbBroker) WriteMessages(msgs []Message, topic string) {
 }
 
 func (broker *lmdbBroker) ReadMessages(consumerTag string, topic string) <-chan Message {
-	log.Println("broker.ReadMessages, consumertag: ", consumerTag, ", topic: ", topic)
+
 	broker.Lock()
 	defer broker.Unlock()
 	t := broker.m[topic]
 	if t == nil {
 		t = newLmdbTopic(broker.env, topic, broker.conf)
-		log.Println("broker.ReadMessages, newLmdbTopic: ", broker.env, ", topic: ", topic, "broker.conf: ", broker.conf)
+
 		broker.m[topic] = t
 	}
-	log.Println("Before t.OpenPartitionForConsum , consumertag: ", consumerTag)
+
 	t.OpenPartitionForConsum(consumerTag)
-	log.Println("After t.OpenPartitionForConsum, consumertag: ", consumerTag)
+
 	return t.ConsumFromPartition()
 }

@@ -350,7 +350,7 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 }
 
 func (topic *lmdbTopic) ConsumFromPartition() <-chan Message {
-	log.Println("Begin topic.ConsumFromPartition")
+
 	buf := make(chan Message, topic.conf.ChannelBufferSize)
 	go func() {
 		for {
@@ -358,24 +358,22 @@ func (topic *lmdbTopic) ConsumFromPartition() <-chan Message {
 		}
 	}()
 
-	log.Println("End topic.ConsumFromPartition")
 	return buf
 }
 
 func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
-	log.Println("Begin topic.consumFromPartition")
 	shouldRotate := false
 	err := topic.env.Update(func(txn *lmdb.Txn) error {
 		pOffset, err := topic.persistOffset(txn)
 		if err != nil {
-			log.Println("After topic.persistOffset, got err: ", err)
 			return err
 		}
+		log.Println("pOffset: ", pOffset)
 		cOffset, err := topic.consumOffset(txn, topic.consumerTag)
 		if err != nil {
-			log.Println("After topic.consumOffset, got err: ", err)
 			return err
 		}
+		log.Println("cOffset: ", cOffset)
 		if pOffset-cOffset == 1 || pOffset == 0 {
 			return nil
 		}
@@ -384,30 +382,26 @@ func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
 			i := 0
 			offset := bytesToUInt64(offsetBuf)
 			for cnt := cap(out); err == nil && cnt > 0; cnt-- {
-				log.Println("i: ", i)
 				out <- payload
 				i++
 				offset = bytesToUInt64(offsetBuf)
 				offsetBuf, payload, err = topic.consumCursor.Get(nil, nil, lmdb.Next)
 				if err != nil && lmdb.IsNotFound(err) {
-					log.Println("After topic.consumCursor.Get, failed with error: ", err)
+
 				}
 			}
 			if offset > 0 {
 				err = topic.updateConsumOffset(txn, topic.consumerTag, offset+1)
 				if err != nil {
-					log.Println("After topic.updateConsumOffset, failed with error: ", err)
 					return err
 				}
 			}
 		} else {
-			log.Println("First topic.consumCursor.Get failed, got err: ", err)
 			if !lmdb.IsNotFound(err) {
-				log.Println("Consumer seek error: ", err)
+
 			}
 			pOffset, err := topic.persistOffset(txn)
 			if err != nil {
-				log.Println("Call topic.persistOffset failed, got err: ", err)
 				return err
 			}
 			if cOffset <= pOffset {
