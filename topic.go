@@ -2,7 +2,6 @@ package lmq
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -351,15 +350,13 @@ func (topic *lmdbTopic) latestPartitionMeta(txn *lmdb.Txn) (*PartitionMeta, erro
 }
 
 func (topic *lmdbTopic) ConsumFromPartition() <-chan Message {
-
 	buf := make(chan Message, topic.conf.ChannelBufferSize)
 	go func() {
-		ticker := time.NewTicker(time.Second * 10)
+		ticker := time.NewTicker(time.Millisecond * 50)
 		for range ticker.C {
 			topic.consumFromPartition(buf)
 		}
 	}()
-
 	return buf
 }
 
@@ -370,22 +367,17 @@ func (topic *lmdbTopic) consumFromPartition(out chan<- Message) {
 		if err != nil {
 			return err
 		}
-		log.Println("pOffset: ", pOffset)
 		cOffset, err := topic.consumOffset(txn, topic.consumerTag)
 		if err != nil {
 			return err
 		}
-		log.Println("cOffset: ", cOffset)
 		if pOffset-cOffset == 1 || pOffset == 0 {
-			log.Println("return?")
 			return nil
 		}
 		offsetBuf, payload, err := topic.consumCursor.Get(uInt64ToBytes(cOffset), nil, lmdb.SetRange)
 		if err == nil {
 			i := 0
 			offset := bytesToUInt64(offsetBuf)
-			log.Println("offset: ", offset)
-			log.Println("payload: ", payload)
 			for cnt := cap(out); err == nil && cnt > 0; cnt-- {
 				out <- payload
 				i++
